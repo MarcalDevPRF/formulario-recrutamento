@@ -1,0 +1,3619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Avaliação — PRF</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --azul:      #002244;
+      --azul-med:  #1565C0;
+      --azul-clr:  #1976D2;
+      --ouro:      #FFC400;
+      --bg:        #f0f4f8;
+      --sidebar-w: 230px;
+      --topbar-h:  54px;
+      --card-r:    10px;
+      --shadow:    0 2px 10px rgba(0,34,68,.10);
+      --verde:     #2e7d32;
+      --laranja:   #e65100;
+      --roxo:      #6a1b9a;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',Arial,sans-serif; }
+    body { background:var(--bg); color:#1a2332; overflow-x:hidden; }
+
+    /* ── Loading / Denied ── */
+    #tela-loading, #tela-acesso-negado {
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:var(--bg); z-index:999; gap:14px;
+    }
+    #tela-acesso-negado { display:none; }
+    .spinner {
+      width:42px; height:42px; border:4px solid #dde3ea;
+      border-top-color:var(--azul-med); border-radius:50%;
+      animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .denied-card {
+      background:#fff; border-radius:var(--card-r); padding:36px 40px;
+      max-width:400px; text-align:center; box-shadow:var(--shadow);
+      border-top:4px solid #c62828;
+    }
+    .denied-card .material-icons { font-size:52px; color:#c62828; margin-bottom:12px; }
+    .denied-card h2 { font-size:17px; margin-bottom:10px; color:#c62828; }
+    .denied-card p  { font-size:13px; color:#555; line-height:1.6; }
+
+    /* ── App shell ── */
+    #app { display:none; }
+
+    /* ── Topbar ── */
+    .topbar {
+      position:fixed; top:0; left:0; right:0; height:var(--topbar-h);
+      background:var(--azul); display:flex; align-items:center;
+      justify-content:space-between; padding:0 18px 0 0; z-index:100;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+    .topbar-brand {
+      display:flex; align-items:center; width:var(--sidebar-w);
+      padding:0 18px; gap:10px; flex-shrink:0;
+    }
+    .topbar-brand .logo { font-weight:800; font-size:20px; color:var(--ouro); letter-spacing:1px; }
+    .topbar-brand .subtitulo { font-size:11px; color:rgba(255,255,255,.6); font-weight:400; line-height:1.3; }
+    .topbar-center { font-size:13px; color:rgba(255,255,255,.75); font-weight:500; flex:1; padding-left:8px; }
+    .topbar-user {
+      display:flex; align-items:center; gap:10px;
+      font-size:12px; color:rgba(255,255,255,.85);
+    }
+    .topbar-avatar {
+      width:30px; height:30px; border-radius:50%; background:var(--azul-med);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:12px; color:#fff; flex-shrink:0;
+    }
+    .badge-perfil {
+      font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
+      text-transform:uppercase; letter-spacing:.4px;
+    }
+    .badge-perfil.admin { background:var(--ouro); color:var(--azul); }
+    .badge-perfil.avaliador { background:#1976D2; color:#fff; }
+
+    /* ── Layout ── */
+    .layout {
+      display:flex; margin-top:var(--topbar-h); min-height:calc(100vh - var(--topbar-h));
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width:var(--sidebar-w); background:var(--azul); flex-shrink:0;
+      position:fixed; top:var(--topbar-h); bottom:0; overflow-y:auto;
+      padding:10px 0 24px;
+    }
+    .nav-section {
+      font-size:9.5px; font-weight:700; color:rgba(255,255,255,.35);
+      text-transform:uppercase; letter-spacing:.8px; padding:16px 18px 6px;
+    }
+    .nav-item {
+      display:flex; align-items:center; gap:11px;
+      padding:10px 18px; cursor:pointer; font-size:13px; font-weight:500;
+      color:rgba(255,255,255,.7); border-left:3px solid transparent;
+      transition:all .2s; user-select:none;
+    }
+    .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
+    .nav-item.ativo { background:rgba(255,255,255,.12); color:#fff; border-left-color:var(--ouro); }
+    .nav-item .material-icons { font-size:18px; opacity:.8; }
+    .nav-item.ativo .material-icons { opacity:1; }
+    .nav-item.desabilitado { opacity:.4; cursor:not-allowed; }
+    .nav-em-breve {
+      font-size:9px; margin-left:auto; background:rgba(255,196,0,.2);
+      color:var(--ouro); padding:1px 6px; border-radius:10px; font-weight:600;
+    }
+    .nav-divider { border-top:1px solid rgba(255,255,255,.08); margin:8px 18px; }
+
+    /* ── Main content ── */
+    .main {
+      margin-left:var(--sidebar-w); flex:1;
+      padding:24px; min-height:calc(100vh - var(--topbar-h));
+    }
+    .page-title {
+      font-size:20px; font-weight:700; color:var(--azul); margin-bottom:20px;
+      display:flex; align-items:center; gap:9px;
+    }
+    .page-title .material-icons { font-size:22px; color:var(--azul-med); }
+
+    /* ── Panels ── */
+    .panel { display:none; }
+    .panel.ativo { display:block; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
+    .kpi-card {
+      background:#fff; border-radius:var(--card-r); padding:18px 20px;
+      box-shadow:var(--shadow); border-left:4px solid var(--azul-med);
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .kpi-card.verde  { border-left-color:var(--verde); }
+    .kpi-card.ouro   { border-left-color:var(--ouro); }
+    .kpi-card.roxo   { border-left-color:var(--roxo); }
+    .kpi-label { font-size:11px; font-weight:600; color:#7a8a9a; text-transform:uppercase; letter-spacing:.4px; }
+    .kpi-value { font-size:32px; font-weight:700; color:var(--azul); line-height:1; }
+    .kpi-sub   { font-size:11px; color:#aaa; }
+    .kpi-icon  { font-size:28px; color:var(--azul-med); align-self:flex-end; opacity:.6; }
+    .kpi-row   { display:flex; justify-content:space-between; align-items:flex-start; }
+
+    /* ── Chart cards ── */
+    .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    @media(max-width:900px) { .charts-grid { grid-template-columns:1fr; } }
+    .chart-card {
+      background:#fff; border-radius:var(--card-r); padding:20px 22px;
+      box-shadow:var(--shadow);
+    }
+    .chart-title {
+      font-size:13px; font-weight:700; color:var(--azul); margin-bottom:16px;
+      display:flex; align-items:center; gap:7px;
+    }
+    .chart-title .material-icons { font-size:16px; color:var(--azul-med); }
+
+    /* Barras horizontais */
+    .bar-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:12px; }
+    .bar-label { width:120px; flex-shrink:0; color:#444; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px; }
+    .bar-track { flex:1; height:10px; background:#eef2f7; border-radius:10px; overflow:hidden; }
+    .bar-fill  { height:100%; border-radius:10px; transition:width .6s ease; background:var(--azul-med); }
+    .bar-fill.verde  { background:var(--verde); }
+    .bar-fill.ouro   { background:var(--ouro); }
+    .bar-fill.roxo   { background:var(--roxo); }
+    .bar-count { width:30px; text-align:right; color:#888; font-size:11.5px; }
+
+    /* Placeholders */
+    .wip-card {
+      background:#fff; border-radius:var(--card-r); padding:48px 24px;
+      box-shadow:var(--shadow); text-align:center;
+    }
+    .wip-card .material-icons { font-size:48px; color:#cfd8e3; margin-bottom:12px; }
+    .wip-card h3 { font-size:15px; color:#7a8a9a; font-weight:600; margin-bottom:8px; }
+    .wip-card p  { font-size:12.5px; color:#aab; line-height:1.6; }
+
+    /* ── Toast ── */
+    #toast-container {
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+      pointer-events:none; z-index:9999;
+    }
+    .toast {
+      display:flex; align-items:flex-start; gap:12px; padding:16px 20px;
+      border-radius:10px; max-width:360px; width:92%;
+      box-shadow:0 8px 32px rgba(0,0,0,.22); font-size:.88em; line-height:1.55;
+      pointer-events:auto; animation:toastIn .25s ease;
+    }
+    .toast.saindo { animation:toastOut .3s ease forwards; }
+    .toast.erro   { background:#fff0f0; border-left:5px solid #c62828; color:#7f0000; }
+    .toast.aviso  { background:#fffde7; border-left:5px solid #f9a825; color:#5f4000; }
+    .toast.sucesso{ background:#e8f5e9; border-left:5px solid var(--verde); color:#1b5e20; }
+    .toast .material-icons { font-size:20px; flex-shrink:0; margin-top:1px; }
+    .toast-msg  { flex:1; }
+    .toast-fechar { background:none; border:none; cursor:pointer; font-size:18px; color:inherit; opacity:.5; }
+    .toast-fechar:hover { opacity:1; }
+    @keyframes toastIn  { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
+    @keyframes toastOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.88)} }
+
+    /* ── Candidatos ── */
+    .filtros-bar {
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-bottom:16px;
+    }
+    .filtros-bar input[type="search"] {
+      flex:1; min-width:220px; padding:9px 13px 9px 36px;
+      border:1.5px solid #dde3ea; border-radius:7px; font-size:13px;
+      font-family:inherit; background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%239aabb8' viewBox='0 0 24 24'%3E%3Cpath d='M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 11px center;
+      transition:border-color .2s;
+    }
+    .filtros-bar input[type="search"]:focus { outline:none; border-color:var(--azul-med); }
+    .filtros-bar select {
+      padding:9px 30px 9px 11px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:12px; font-family:inherit; background:#fff; color:#1a2332;
+      cursor:pointer; appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%237a8a9a' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 8px center;
+      transition:border-color .2s;
+    }
+    .filtros-bar select:focus { outline:none; border-color:var(--azul-med); }
+    .btn-icon {
+      display:flex; align-items:center; gap:5px; padding:8px 14px;
+      border:1.5px solid #dde3ea; border-radius:7px; background:#fff;
+      font-size:12px; font-weight:600; font-family:inherit; cursor:pointer;
+      color:#444; transition:all .2s; white-space:nowrap;
+    }
+    .btn-icon:hover { border-color:var(--azul-med); color:var(--azul-med); background:#f0f4ff; }
+    .btn-icon .material-icons { font-size:16px; }
+    .count-badge {
+      font-size:12px; color:#7a8a9a; font-weight:500; margin-left:auto;
+    }
+
+    /* Tabela */
+    .table-wrap {
+      background:#fff; border-radius:var(--card-r); box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .cand-table { width:100%; border-collapse:collapse; }
+    .cand-table thead tr { background:#f8fafc; border-bottom:2px solid #eef2f7; }
+    .cand-table th {
+      padding:11px 14px; text-align:left; font-size:11px; font-weight:700;
+      color:#7a8a9a; text-transform:uppercase; letter-spacing:.4px;
+      white-space:nowrap;
+    }
+    .cand-table tbody tr {
+      border-bottom:1px solid #f0f4f8; cursor:pointer; transition:background .15s;
+    }
+    .cand-table tbody tr:last-child { border-bottom:none; }
+    .cand-table tbody tr:hover { background:#f5f8ff; }
+    .cand-table td { padding:11px 14px; font-size:13px; vertical-align:middle; }
+    .cand-avatar {
+      width:34px; height:34px; border-radius:50%; background:var(--azul-med);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:12px; color:#fff; flex-shrink:0;
+    }
+    .cand-nome-wrap { display:flex; align-items:center; gap:10px; }
+    .cand-nome      { font-weight:600; color:#1a2332; }
+    .cand-cargo     { font-size:11px; color:#9aabb8; margin-top:1px; }
+    .badge-form {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:20px; text-transform:uppercase; letter-spacing:.3px;
+      white-space:nowrap;
+    }
+    .badge-form.grad  { background:#e3f2fd; color:#1565C0; }
+    .badge-form.pos   { background:#e8f5e9; color:#2e7d32; }
+    .badge-form.mest  { background:#fff3e0; color:#e65100; }
+    .badge-form.dout  { background:#f3e5f5; color:#6a1b9a; }
+    .badge-form.ni    { background:#f0f4f8; color:#9aabb8; }
+    .badge-conj {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:20px; white-space:nowrap;
+    }
+    .badge-conj.confirmado { background:#e8f5e9; color:#2e7d32; }
+    .badge-conj.pendente   { background:#fff3e0; color:#e65100; }
+    .badge-conj.recusado   { background:#ffebee; color:#c62828; }
+    .badge-conj.na         { background:#f0f4f8; color:#9aabb8; }
+    .empty-state {
+      padding:48px 24px; text-align:center;
+      color:#9aabb8; font-size:13px; display:none;
+    }
+    .empty-state .material-icons { font-size:40px; display:block; margin-bottom:10px; color:#cfd8e3; }
+
+    /* ── Drawer ── */
+    .drawer-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.35);
+      z-index:200; display:none; animation:fadeIn .2s;
+    }
+    .drawer {
+      position:fixed; top:0; right:0; bottom:0; width:480px; max-width:100vw;
+      background:#fff; z-index:201; display:flex; flex-direction:column;
+      transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1);
+      box-shadow:-4px 0 24px rgba(0,0,0,.14);
+    }
+    .drawer.aberto { transform:translateX(0); }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .drawer-header {
+      display:flex; align-items:flex-start; justify-content:space-between;
+      padding:20px 22px 18px; border-bottom:2px solid var(--bg);
+      flex-shrink:0; background:var(--azul); color:#fff;
+    }
+    .drawer-nome { font-size:16px; font-weight:700; margin-bottom:3px; }
+    .drawer-sub  { font-size:12px; opacity:.7; }
+    .drawer-close {
+      background:rgba(255,255,255,.1); border:none; cursor:pointer;
+      color:#fff; border-radius:6px; width:30px; height:30px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:20px; flex-shrink:0; transition:background .2s; margin-top:2px;
+    }
+    .drawer-close:hover { background:rgba(255,255,255,.2); }
+    .drawer-body {
+      flex:1; overflow-y:auto; padding:0;
+    }
+    .drawer-section {
+      padding:16px 22px; border-bottom:1px solid #f0f4f8;
+    }
+    .drawer-section:last-child { border-bottom:none; }
+    .drawer-sec-title {
+      font-size:10px; font-weight:700; color:#7a8a9a; text-transform:uppercase;
+      letter-spacing:.6px; margin-bottom:12px; display:flex; align-items:center; gap:6px;
+    }
+    .drawer-sec-title .material-icons { font-size:15px; }
+    .info-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    }
+    .info-item label {
+      display:block; font-size:10px; font-weight:700; color:#9aabb8;
+      text-transform:uppercase; letter-spacing:.3px; margin-bottom:2px;
+    }
+    .info-item span  { font-size:13px; color:#1a2332; font-weight:500; word-break:break-word; }
+    .info-item.full  { grid-column:1/-1; }
+
+    /* Big Five */
+    .bfi-dim {
+      margin-bottom:13px;
+    }
+    .bfi-dim:last-child { margin-bottom:0; }
+    .bfi-dim-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:5px;
+    }
+    .bfi-dim-nome  { font-size:12px; font-weight:600; color:#1a2332; }
+    .bfi-dim-score { font-size:12px; font-weight:700; }
+    .bfi-dim-nivel {
+      font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px;
+      text-transform:uppercase; letter-spacing:.3px;
+    }
+    .bfi-dim-nivel.alto   { background:#e8f5e9; color:#2e7d32; }
+    .bfi-dim-nivel.medio  { background:#fff3e0; color:#e65100; }
+    .bfi-dim-nivel.baixo  { background:#ffebee; color:#c62828; }
+    .bfi-track {
+      height:8px; background:#eef2f7; border-radius:8px; overflow:hidden;
+    }
+    .bfi-fill { height:100%; border-radius:8px; transition:width .6s ease; }
+    .bfi-desc { font-size:11px; color:#7a8a9a; margin-top:4px; line-height:1.45; }
+
+    /* Links de PDF */
+    .pdf-link {
+      display:flex; align-items:center; gap:8px; padding:9px 12px;
+      border:1.5px solid #eef2f7; border-radius:7px; font-size:12px;
+      color:var(--azul-med); font-weight:600; text-decoration:none;
+      margin-bottom:8px; transition:all .2s;
+    }
+    .pdf-link:hover { background:#f0f4ff; border-color:var(--azul-med); }
+    .pdf-link .material-icons { font-size:16px; }
+    .pdf-link:last-child { margin-bottom:0; }
+
+    @media(max-width:600px) {
+      .drawer { width:100vw; }
+      .filtros-bar select { font-size:12px; }
+    }
+
+    /* ── Diagnóstico ── */
+    .diag-card {
+      background:#fff3e0; border:1.5px solid #ff9800; border-radius:var(--card-r);
+      padding:16px 20px; margin-bottom:20px; display:flex; gap:14px; align-items:flex-start;
+    }
+    .diag-card .material-icons { color:#e65100; font-size:24px; flex-shrink:0; margin-top:1px; }
+    .diag-card .diag-body { flex:1; }
+    .diag-card h4 { font-size:13px; font-weight:700; color:#e65100; margin-bottom:4px; }
+    .diag-card p  { font-size:12px; color:#5d4037; line-height:1.55; }
+    .diag-card code {
+      display:inline-block; background:#fbe9e7; border:1px solid #ffccbc;
+      border-radius:4px; padding:1px 6px; font-size:11px; color:#bf360c;
+    }
+    .btn-diag {
+      margin-top:8px; padding:7px 14px; background:#e65100; color:#fff;
+      border:none; border-radius:6px; font-size:12px; font-weight:600;
+      font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
+      transition:background .2s;
+    }
+    .btn-diag:hover { background:#bf360c; }
+    .btn-diag .material-icons { font-size:15px; }
+    .diag-table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+    .diag-table th { background:#fff3e0; color:#e65100; padding:6px 10px; text-align:left; border-bottom:1px solid #ffe0b2; font-size:11px; }
+    .diag-table td { padding:7px 10px; border-bottom:1px solid #fce8d5; color:#1a2332; font-family:monospace; }
+    .diag-table tr.destaque td { background:#fff8e1; font-weight:700; color:#e65100; }
+    .diag-table .badge-gid { font-size:10px; background:#e8f0fe; color:#1565C0; padding:1px 6px; border-radius:10px; }
+
+    /* ── Gerenciar Acesso ── */
+    .acesso-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:16px; flex-wrap:wrap; gap:10px;
+    }
+    .btn-primary-sm {
+      display:flex; align-items:center; gap:6px;
+      padding:9px 16px; background:var(--azul-med); color:#fff;
+      border:none; border-radius:7px; font-size:13px; font-weight:600;
+      font-family:inherit; cursor:pointer; transition:background .2s;
+    }
+    .btn-primary-sm:hover { background:#0d47a1; }
+    .btn-primary-sm .material-icons { font-size:17px; }
+    .acesso-table { width:100%; border-collapse:collapse; }
+    .acesso-table thead tr { background:#f8fafc; border-bottom:2px solid #eef2f7; }
+    .acesso-table th {
+      padding:10px 14px; text-align:left; font-size:11px; font-weight:700;
+      color:#7a8a9a; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap;
+    }
+    .acesso-table tbody tr { border-bottom:1px solid #f0f4f8; transition:background .15s; }
+    .acesso-table tbody tr:last-child { border-bottom:none; }
+    .acesso-table tbody tr:hover { background:#f8fafc; }
+    .acesso-table td { padding:11px 14px; font-size:13px; vertical-align:middle; }
+    .badge-status {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 9px;
+      border-radius:20px; text-transform:uppercase; letter-spacing:.3px;
+    }
+    .badge-status.ativo   { background:#e8f5e9; color:#2e7d32; }
+    .badge-status.inativo { background:#ffebee; color:#c62828; }
+    .acoes-cell { display:flex; gap:8px; align-items:center; }
+    .btn-acao {
+      display:flex; align-items:center; gap:4px;
+      padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600;
+      font-family:inherit; cursor:pointer; border:1.5px solid; transition:all .2s;
+    }
+    .btn-acao .material-icons { font-size:14px; }
+    .btn-acao.editar { border-color:#dde3ea; color:#444; background:#fff; }
+    .btn-acao.editar:hover { border-color:var(--azul-med); color:var(--azul-med); background:#f0f4ff; }
+    .btn-acao.revogar { border-color:#ffcdd2; color:#c62828; background:#fff; }
+    .btn-acao.revogar:hover { background:#ffebee; }
+    .btn-acao.ativar { border-color:#c8e6c9; color:#2e7d32; background:#fff; }
+    .btn-acao.ativar:hover { background:#e8f5e9; }
+    .btn-acao.excluir { border-color:#ffcdd2; color:#b71c1c; background:#fff; }
+    .btn-acao.excluir:hover { background:#ffebee; border-color:#b71c1c; }
+    .btn-acao:disabled { opacity:.4; cursor:not-allowed; }
+    .unid-cell { font-size:11.5px; color:#555; max-width:160px; overflow:hidden;
+                 text-overflow:ellipsis; white-space:nowrap; }
+
+    /* ── Avaliações — Parte 3 ── */
+    .badge-aval {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:20px; white-space:nowrap; text-transform:uppercase; letter-spacing:.3px;
+    }
+    .badge-aval.nao      { background:#f0f4f8; color:#9aabb8; }
+    .badge-aval.rascunho { background:#fff3e0; color:#e65100; }
+    .badge-aval.concluida{ background:#e8f5e9; color:#2e7d32; }
+    .nota-mini {
+      display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap;
+    }
+    .nota-mini .nm-val  { font-weight:700; color:#1a2332; }
+    .nota-mini .nm-star { color:#FFC400; font-size:15px; line-height:1; }
+    .nota-mini .nm-na   { color:#9aabb8; font-size:12px; }
+
+    /* Estrelas interativas */
+    .star-row {
+      display:flex; align-items:center; gap:10px; padding:5px 0;
+    }
+    .star-row .sr-label {
+      font-size:12px; font-weight:600; color:#1a2332; min-width:170px; flex-shrink:0;
+    }
+    .stars {
+      display:flex; gap:2px; cursor:pointer; user-select:none;
+    }
+    .stars .s {
+      font-size:28px; color:#dde3ea; line-height:1;
+      transition:color .1s; pointer-events:none;
+    }
+    .stars.interativo .s { pointer-events:auto; }
+    .stars .s.on    { color:#FFC400; }
+    .stars .s.hover { color:#FFD740; }
+    .star-val { font-size:13px; font-weight:700; color:#1a2332; min-width:28px; }
+
+    /* Modal de avaliação */
+    .aval-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.45);
+      z-index:300; display:none; align-items:center; justify-content:center;
+      padding:16px;
+    }
+    .aval-overlay.aberto { display:flex; }
+    .aval-modal {
+      background:#fff; border-radius:12px; width:100%; max-width:580px;
+      max-height:92vh; box-shadow:0 16px 48px rgba(0,0,0,.24);
+      display:flex; flex-direction:column; overflow:hidden; animation:toastIn .2s;
+    }
+    .aval-modal-hdr {
+      display:flex; align-items:flex-start; justify-content:space-between;
+      padding:18px 22px; background:var(--azul); color:#fff; flex-shrink:0;
+    }
+    .aval-modal-hdr .amh-tipo {
+      font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+      color:var(--ouro); margin-bottom:3px;
+    }
+    .aval-modal-hdr .amh-nome { font-size:15px; font-weight:700; margin-bottom:2px; }
+    .aval-modal-hdr .amh-sub  { font-size:12px; opacity:.7; }
+    .aval-modal-body { flex:1; overflow-y:auto; padding:20px 22px; }
+    .aval-modal-ftr {
+      display:flex; gap:8px; justify-content:flex-end; align-items:center;
+      padding:12px 22px; border-top:1px solid #f0f4f8; background:#fafbfc; flex-shrink:0;
+    }
+    .aval-cand-meta {
+      display:flex; gap:18px; flex-wrap:wrap; padding:10px 14px;
+      background:#f8fafc; border-radius:7px; margin-bottom:20px; font-size:12px;
+    }
+    .aval-cand-meta span { color:#7a8a9a; }
+    .aval-cand-meta strong { color:#1a2332; font-weight:600; }
+    .aval-sec { margin-bottom:18px; }
+    .aval-sec:last-child { margin-bottom:0; }
+    .aval-sec-lbl {
+      font-size:10px; font-weight:700; color:#7a8a9a; text-transform:uppercase;
+      letter-spacing:.5px; margin-bottom:8px; display:flex; align-items:center; gap:5px;
+    }
+    .aval-sec-lbl .material-icons { font-size:14px; }
+    .aval-textarea {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:13px; font-family:inherit; color:#1a2332; background:#f8fafc;
+      resize:vertical; min-height:72px; transition:border-color .2s;
+    }
+    .aval-textarea:focus { outline:none; border-color:var(--azul-med); background:#fff; }
+    .aval-input {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:13px; font-family:inherit; color:#1a2332; background:#f8fafc;
+      transition:border-color .2s;
+    }
+    .aval-input:focus { outline:none; border-color:var(--azul-med); background:#fff; }
+    .criterios-wrap { display:flex; flex-direction:column; gap:2px; }
+    .media-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:5px 14px; background:#f8fafc; border-radius:20px; margin-top:10px;
+      border:1.5px solid #eef2f7;
+    }
+    .media-badge .mb-val  { font-size:18px; font-weight:700; color:var(--azul); }
+    .media-badge .mb-star { color:#FFC400; font-size:16px; }
+    .media-badge .mb-lbl  { font-size:11px; color:#9aabb8; }
+    .btn-rascunho {
+      padding:9px 16px; border:1.5px solid #dde3ea; border-radius:7px;
+      background:#fff; font-size:13px; font-weight:600; font-family:inherit;
+      cursor:pointer; color:#555; transition:all .2s;
+    }
+    .btn-rascunho:hover { border-color:var(--azul-med); color:var(--azul-med); }
+    .btn-rascunho:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-concluir {
+      padding:9px 20px; border:none; border-radius:7px;
+      background:var(--verde); color:#fff; font-size:13px;
+      font-weight:600; font-family:inherit; cursor:pointer; transition:background .2s;
+      display:flex; align-items:center; gap:6px;
+    }
+    .btn-concluir:hover { background:#1b5e20; }
+    .btn-concluir:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-concluir .material-icons { font-size:16px; }
+
+    /* ── Barra de progresso de avaliadores (3 dots) ── */
+    .eval-prog { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+    .eval-prog-dot { width:10px; height:10px; border-radius:50%; background:#dde3ea; flex-shrink:0; }
+    .eval-prog-dot.feito { background:#2e7d32; }
+    .eval-prog-num { font-size:11px; font-weight:700; color:#7a8a9a; margin-left:2px; }
+
+    /* ── Link de currículo no header do modal ── */
+    .amh-cv { margin-top:6px; }
+    .amh-cv a {
+      color:var(--ouro); font-size:11px; font-weight:600; text-decoration:none;
+      display:inline-flex; align-items:center; gap:3px; opacity:.9;
+    }
+    .amh-cv a:hover { opacity:1; text-decoration:underline; }
+    .amh-cv a .material-icons { font-size:12px; }
+
+    /* ── Tag chip input (unidades indicadas) ── */
+    .tag-inp-wrap {
+      display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+      min-height:42px; padding:6px 10px; border:1.5px solid #dde3ea;
+      border-radius:7px; background:#f8fafc; cursor:text;
+      transition:border-color .2s;
+    }
+    .tag-inp-wrap:focus-within { border-color:var(--azul-med); background:#fff; }
+    .tag-chip {
+      display:inline-flex; align-items:center; gap:3px;
+      background:#e3f2fd; color:#1565C0; border-radius:20px;
+      padding:3px 10px 3px 12px; font-size:12px; font-weight:600; white-space:nowrap;
+    }
+    .tag-chip .rm {
+      background:none; border:none; cursor:pointer; color:#7a8a9a;
+      font-size:15px; line-height:1; padding:0 0 0 2px; display:flex; align-items:center;
+    }
+    .tag-chip .rm:hover { color:#c62828; }
+    .tag-inp-input {
+      border:none; outline:none; background:transparent; font-family:inherit;
+      font-size:13px; color:#1a2332; min-width:140px; flex:1; padding:2px 0;
+    }
+    .tag-drop {
+      background:#fff; border:1.5px solid #dde3ea; border-radius:7px;
+      box-shadow:0 6px 20px rgba(0,0,0,.12); z-index:9999;
+      max-height:200px; overflow-y:auto; position:fixed;
+    }
+    .tag-drop-item {
+      padding:9px 14px; font-size:13px; cursor:pointer; transition:background .1s;
+    }
+    .tag-drop-item:hover { background:#f0f4f8; }
+
+    /* ── Wizard: Novo Recrutamento ── */
+    .card {
+      background:#fff; border-radius:var(--card-r); padding:20px 22px;
+      box-shadow:var(--shadow); margin-bottom:14px;
+    }
+
+    /* Stepper */
+    .nr-stepper {
+      display:flex; align-items:flex-start; margin-bottom:28px;
+      max-width:720px; user-select:none;
+    }
+    .nr-step-wrap {
+      display:flex; flex-direction:column; align-items:center; cursor:pointer;
+      gap:5px; flex-shrink:0;
+    }
+    .nr-step {
+      width:40px; height:40px; border-radius:50%; border:2.5px solid #dde3ea;
+      background:#fff; display:flex; align-items:center; justify-content:center;
+      font-weight:800; font-size:14px; color:#b0bec5; transition:all .25s;
+      position:relative;
+    }
+    .nr-step .nr-s-icon { font-size:18px; display:block; }
+    .nr-step .nr-s-num  { display:none; }
+    .nr-step.ativo { border-color:var(--azul-med); background:var(--azul-med); color:#fff; }
+    .nr-step.feito { border-color:var(--verde); background:var(--verde); color:#fff; }
+    .nr-step.feito .nr-s-icon { display:none; }
+    .nr-step.feito::after { content:'✓'; font-size:16px; font-weight:900; }
+    .nr-step-lbl {
+      font-size:10px; font-weight:600; color:#9aabb8; text-align:center;
+      white-space:nowrap; max-width:80px;
+    }
+    .nr-step-wrap:has(.ativo) .nr-step-lbl { color:var(--azul-med); }
+    .nr-step-wrap:has(.feito) .nr-step-lbl { color:var(--verde); }
+    .nr-line {
+      flex:1; height:2.5px; background:#dde3ea; margin:0 4px; margin-top:19px;
+      transition:background .25s;
+    }
+    .nr-line.feita { background:var(--verde); }
+
+    /* Passo */
+    .nr-passo { display:none; }
+    .nr-passo.ativo { display:block; }
+    .nr-passo-titulo {
+      display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700;
+      color:var(--azul); margin-bottom:8px;
+    }
+    .nr-passo-titulo .material-icons { font-size:20px; }
+    .nr-passo-desc {
+      font-size:13px; color:#7a8a9a; margin-bottom:18px; line-height:1.6;
+    }
+    .nr-passo-info {
+      display:flex; align-items:flex-start; gap:8px;
+      background:#e3f2fd; border-left:4px solid var(--azul-med);
+      border-radius:0 7px 7px 0; padding:10px 14px;
+      font-size:12px; color:#1a2332; line-height:1.6; margin-top:14px;
+    }
+    .nr-passo-info .material-icons { font-size:16px; color:var(--azul-med); flex-shrink:0; margin-top:1px; }
+    .nr-nav {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-top:22px; padding-top:16px; border-top:1px solid #f0f4f8;
+    }
+
+    /* Campos */
+    .nr-field { margin-bottom:16px; }
+    .nr-label { font-size:11px; font-weight:700; color:#7a8a9a; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:5px; }
+    .nr-req   { color:#c62828; }
+    .nr-input {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:13px; font-family:inherit; color:#1a2332; background:#f8fafc;
+      transition:border-color .2s;
+    }
+    .nr-input:focus { outline:none; border-color:var(--azul-med); background:#fff; }
+    .nr-textarea {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:12px; font-family:'Courier New',monospace; color:#1a2332; background:#f8fafc;
+      resize:vertical; transition:border-color .2s; line-height:1.6;
+    }
+    .nr-textarea:focus { outline:none; border-color:var(--azul-med); background:#fff; }
+
+    /* Bulk card */
+    .nr-bulk-card {
+      background:#f8fafc; border:1.5px solid #dde3ea; border-radius:8px;
+      padding:14px 16px; margin-bottom:8px;
+    }
+
+    /* Chips removíveis */
+    .nr-chips-wrap {
+      display:flex; flex-wrap:wrap; gap:6px; padding:10px;
+      background:#f8fafc; border:1.5px solid #eef2f7; border-radius:8px;
+      min-height:44px; max-height:260px; overflow-y:auto;
+    }
+    .nr-chip {
+      display:inline-flex; align-items:center; gap:4px;
+      padding:4px 10px 4px 12px; border-radius:20px; font-size:12px; font-weight:600;
+      cursor:default; white-space:nowrap;
+    }
+    .nr-chip.uorg    { background:#e3f2fd; color:#1565C0; }
+    .nr-chip.unid    { background:#e8f5e9; color:#2e7d32; border:1.5px solid #c8e6c9; }
+    .nr-chip.unid-off{ background:#f0f4f8; color:#9aabb8; border:1.5px solid #dde3ea; }
+    .nr-chip .nr-rm  {
+      background:none; border:none; cursor:pointer; color:#9aabb8;
+      font-size:14px; line-height:1; padding:0; margin-left:2px;
+      display:flex; align-items:center;
+    }
+    .nr-chip .nr-rm:hover { color:#c62828; }
+    .nr-chip.unid:hover   { background:#c8e6c9; }
+    .nr-chip.unid-off:hover { background:#e0e0e0; }
+
+    /* Contador de linhas */
+    .nr-count-badge {
+      font-size:11px; font-weight:700; background:var(--azul-med); color:#fff;
+      border-radius:20px; padding:1px 8px; min-width:24px; text-align:center;
+    }
+
+    /* Revisão */
+    .nr-rev-item {
+      display:flex; gap:14px; padding:10px 0; border-bottom:1px solid #f0f4f8;
+      font-size:13px; align-items:flex-start;
+    }
+    .nr-rev-item:last-child { border-bottom:none; }
+    .nr-rev-lbl { font-weight:700; color:#7a8a9a; min-width:170px; flex-shrink:0; font-size:11px; text-transform:uppercase; letter-spacing:.4px; padding-top:2px; }
+    .nr-rev-val { color:#1a2332; flex:1; line-height:1.7; }
+    .nr-rev-val code { background:#f0f4f8; padding:1px 6px; border-radius:4px; font-size:11px; }
+    .nr-rev-edit { font-size:10px; color:var(--azul-med); cursor:pointer; text-decoration:underline; flex-shrink:0; padding-top:3px; }
+    .nr-rev-edit:hover { color:var(--azul); }
+
+    /* ── Resumo Geral — cards e tabela ── */
+    .resumo-cards {
+      display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;
+    }
+    .resumo-card {
+      flex:1; min-width:110px; background:#fff; border-radius:var(--card-r);
+      padding:14px 18px; box-shadow:var(--shadow); text-align:center;
+      border-top:3px solid #dde3ea;
+    }
+    .rc-val {
+      font-size:26px; font-weight:800; color:#1a2332; line-height:1;
+      margin-bottom:4px;
+    }
+    .rc-val.rc-azul  { color:var(--azul-med); }
+    .rc-val.rc-verde { color:var(--verde); }
+    .rc-lbl { font-size:11px; font-weight:600; color:#9aabb8; text-transform:uppercase; letter-spacing:.4px; }
+
+    /* ── Badges de status do resumo ── */
+    .badge-resumo {
+      display:inline-block; font-size:10px; font-weight:700; padding:2px 8px;
+      border-radius:20px; white-space:nowrap; text-transform:uppercase; letter-spacing:.3px;
+    }
+    .badge-resumo.completo    { background:#e8f5e9; color:#2e7d32; }
+    .badge-resumo.andamento   { background:#fff3e0; color:#e65100; }
+    .badge-resumo.aguardando  { background:#f0f4f8; color:#9aabb8; }
+
+    /* ── Chips de unidade no resumo ── */
+    .uni-chip {
+      display:inline-flex; align-items:center; gap:4px;
+      background:#e8f5e9; color:#1b5e20; border-radius:20px;
+      padding:2px 8px; font-size:11px; font-weight:600; margin:2px;
+      white-space:nowrap;
+    }
+    .uni-chip .vc {
+      background:#2e7d32; color:#fff; border-radius:50%;
+      width:16px; height:16px; font-size:9px; font-weight:700;
+      display:inline-flex; align-items:center; justify-content:center;
+    }
+
+    /* ── Detalhe — seções internas ── */
+    .det-sec { margin-bottom:22px; }
+    .det-sec-title {
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+      color:#7a8a9a; margin-bottom:10px; display:flex; align-items:center; gap:6px;
+      padding-bottom:6px; border-bottom:1px solid #f0f4f8;
+    }
+    .det-sec-title .material-icons { font-size:15px; }
+    .det-media-row {
+      display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;
+    }
+    .det-media-box {
+      flex:1; min-width:110px; background:#f8fafc; border-radius:8px;
+      padding:10px 12px; text-align:center; border:1.5px solid #eef2f7;
+    }
+    .det-media-box .dmb-val  { font-size:20px; font-weight:800; color:var(--azul); }
+    .det-media-box .dmb-star { color:#FFC400; font-size:14px; }
+    .det-media-box .dmb-lbl  { font-size:10px; color:#9aabb8; font-weight:600; text-transform:uppercase; letter-spacing:.3px; margin-top:2px; }
+    .det-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .det-table th {
+      background:#f8fafc; font-weight:700; font-size:10px; text-transform:uppercase;
+      letter-spacing:.4px; color:#7a8a9a; padding:7px 10px; border-bottom:1px solid #eef2f7;
+      white-space:nowrap;
+    }
+    .det-table td { padding:7px 10px; border-bottom:1px solid #f8fafc; vertical-align:top; }
+    .det-table tr:last-child td { border-bottom:none; }
+    .det-nota { font-weight:700; color:#1a2332; }
+    .det-nota-na { color:#9aabb8; }
+    .det-obs { font-size:11px; color:#7a8a9a; line-height:1.5; margin-top:3px; white-space:pre-wrap; }
+
+    /* ── Modal de confirmação de exclusão ── */
+    .confirm-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.50);
+      z-index:400; display:none; align-items:center; justify-content:center;
+    }
+    .confirm-overlay.aberto { display:flex; }
+    .confirm-box {
+      background:#fff; border-radius:10px; width:100%; max-width:380px;
+      box-shadow:0 16px 48px rgba(0,0,0,.28); overflow:hidden;
+      animation:toastIn .2s;
+    }
+    .confirm-box-header {
+      display:flex; align-items:center; gap:10px;
+      padding:16px 20px; background:#c62828; color:#fff;
+    }
+    .confirm-box-header .material-icons { font-size:22px; }
+    .confirm-box-header h3 { font-size:14px; font-weight:700; }
+    .confirm-box-body { padding:16px 20px; font-size:13px; color:#333; line-height:1.6; }
+    .confirm-box-body strong { color:#c62828; }
+    .confirm-box-footer {
+      display:flex; gap:8px; justify-content:flex-end;
+      padding:12px 20px; border-top:1px solid #f0f4f8; background:#fafbfc;
+    }
+    .btn-confirm-cancel {
+      padding:8px 16px; border:1.5px solid #dde3ea; border-radius:7px;
+      background:#fff; font-size:13px; font-weight:600; font-family:inherit;
+      cursor:pointer; color:#555; transition:all .2s;
+    }
+    .btn-confirm-cancel:hover { background:#f0f0f0; }
+    .btn-confirm-ok {
+      padding:8px 18px; border:none; border-radius:7px;
+      background:#c62828; color:#fff; font-size:13px;
+      font-weight:600; font-family:inherit; cursor:pointer; transition:background .2s;
+      display:flex; align-items:center; gap:6px;
+    }
+    .btn-confirm-ok:hover { background:#b71c1c; }
+    .btn-confirm-ok .material-icons { font-size:16px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.45);
+      z-index:300; display:none; align-items:center; justify-content:center;
+      animation:fadeIn .18s;
+    }
+    .modal-overlay.aberto { display:flex; }
+    .modal {
+      background:#fff; border-radius:12px; width:100%; max-width:460px;
+      box-shadow:0 16px 48px rgba(0,0,0,.22); overflow:hidden;
+      animation:toastIn .2s;
+    }
+    .modal-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:18px 22px; background:var(--azul); color:#fff;
+    }
+    .modal-header h3 { font-size:15px; font-weight:700; }
+    .modal-close {
+      background:rgba(255,255,255,.12); border:none; cursor:pointer;
+      color:#fff; border-radius:6px; width:28px; height:28px;
+      display:flex; align-items:center; justify-content:center; font-size:19px;
+      transition:background .2s;
+    }
+    .modal-close:hover { background:rgba(255,255,255,.22); }
+    .modal-body { padding:22px; }
+    .modal-footer {
+      display:flex; gap:10px; justify-content:flex-end;
+      padding:14px 22px; border-top:1px solid #f0f4f8; background:#fafbfc;
+    }
+    .form-field { margin-bottom:16px; }
+    .form-field label {
+      display:block; font-size:11px; font-weight:700; color:var(--azul);
+      text-transform:uppercase; letter-spacing:.4px; margin-bottom:5px;
+    }
+    .form-field label .obrig { color:#c62828; }
+    .form-field input, .form-field select, .form-field textarea {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea; border-radius:7px;
+      font-size:13px; font-family:inherit; color:#1a2332; background:#f8fafc;
+      transition:border-color .2s;
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+      outline:none; border-color:var(--azul-med); background:#fff;
+    }
+    .form-field input:disabled, .form-field select:disabled, .form-field textarea:disabled {
+      background:#f0f4f8; color:#9aabb8; cursor:not-allowed;
+    }
+    .form-field textarea { resize:vertical; min-height:68px; }
+    .form-field .field-help { font-size:11px; color:#9aabb8; margin-top:4px; }
+    .btn-cancel {
+      padding:9px 18px; border:1.5px solid #dde3ea; border-radius:7px;
+      background:#fff; font-size:13px; font-weight:600; font-family:inherit;
+      cursor:pointer; color:#555; transition:all .2s;
+    }
+    .btn-cancel:hover { background:#f0f0f0; }
+    .btn-save {
+      padding:9px 20px; border:none; border-radius:7px;
+      background:var(--azul-med); color:#fff; font-size:13px;
+      font-weight:600; font-family:inherit; cursor:pointer; transition:background .2s;
+    }
+    .btn-save:hover { background:#0d47a1; }
+    .btn-save:disabled { opacity:.45; cursor:not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="tela-loading">
+  <div class="spinner"></div>
+  <span style="font-size:13px;color:#7a8a9a;font-weight:500;">Verificando acesso...</span>
+</div>
+
+<!-- Acesso negado -->
+<div id="tela-acesso-negado">
+  <div class="denied-card">
+    <span class="material-icons">lock</span>
+    <h2>Acesso não autorizado</h2>
+    <p id="msg-acesso-negado">Você não tem permissão para acessar o Painel de Avaliação.</p>
+    <p style="margin-top:12px;font-size:12px;color:#aaa;">Solicite acesso ao administrador do sistema.</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div>
+        <div class="logo">PRF</div>
+        <div class="subtitulo">Painel de Avaliação</div>
+      </div>
+    </div>
+    <div class="topbar-center" id="topbar-titulo">Dashboard</div>
+    <div class="topbar-user">
+      <div class="topbar-avatar" id="avatar-iniciais">?</div>
+      <div style="line-height:1.3">
+        <div style="font-weight:600;font-size:12px" id="user-nome">—</div>
+        <div id="user-email" style="font-size:10px;opacity:.6"></div>
+      </div>
+      <span id="badge-perfil" class="badge-perfil">—</span>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-section">Menu</div>
+
+      <div class="nav-item ativo" id="nav-dashboard" onclick="navegar('dashboard')">
+        <span class="material-icons">dashboard</span>
+        Dashboard
+      </div>
+      <div class="nav-item" id="nav-candidatos" onclick="navegar('candidatos')">
+        <span class="material-icons">people</span>
+        Candidatos
+      </div>
+
+      <div class="nav-divider"></div>
+      <div class="nav-section">Avaliações</div>
+
+      <div class="nav-item" id="nav-curriculo" onclick="navegar('curriculo')">
+        <span class="material-icons">description</span>
+        Currículo
+      </div>
+      <div class="nav-item" id="nav-entrevista" onclick="navegar('entrevista')">
+        <span class="material-icons">record_voice_over</span>
+        Entrevista
+      </div>
+      <div class="nav-item" id="nav-resumo" onclick="navegar('resumo')">
+        <span class="material-icons">assessment</span>
+        Resumo Geral
+      </div>
+
+      <div class="nav-divider" id="divider-admin" style="display:none"></div>
+      <div class="nav-section" id="nav-section-admin" style="display:none">Administração</div>
+
+      <div class="nav-item" id="nav-acesso" style="display:none" onclick="navegar('acesso')">
+        <span class="material-icons">admin_panel_settings</span>
+        Gerenciar Acesso
+      </div>
+
+      <div class="nav-item" id="nav-novorec" style="display:none" onclick="navegar('novorec')">
+        <span class="material-icons">add_circle_outline</span>
+        Novo Recrutamento
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="main">
+
+      <!-- DASHBOARD -->
+      <div class="panel ativo" id="panel-dashboard">
+        <div class="page-title" style="margin-bottom:16px;">
+          <span class="material-icons">dashboard</span>
+          Dashboard
+          <button class="btn-icon" style="margin-left:auto;border-color:#ffcc80;color:#e65100;" onclick="executarDiagnostico()" title="Verificar abas e dados da planilha">
+            <span class="material-icons" style="font-size:16px;">manage_search</span> Verificar Planilha
+          </button>
+        </div>
+
+        <!-- Área de diagnóstico (exibida condicionalmente) -->
+        <div id="diag-area"></div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-row">
+              <div>
+                <div class="kpi-label">Candidatos</div>
+                <div class="kpi-value" id="kpi-total">—</div>
+                <div class="kpi-sub">inscrições recebidas</div>
+              </div>
+              <span class="material-icons kpi-icon">how_to_reg</span>
+            </div>
+          </div>
+          <div class="kpi-card verde">
+            <div class="kpi-row">
+              <div>
+                <div class="kpi-label">Unidades</div>
+                <div class="kpi-value" id="kpi-unidades">—</div>
+                <div class="kpi-sub">com candidatos</div>
+              </div>
+              <span class="material-icons kpi-icon" style="color:var(--verde)">location_city</span>
+            </div>
+          </div>
+          <div class="kpi-card ouro">
+            <div class="kpi-row">
+              <div>
+                <div class="kpi-label">Acomp. Cônjuge</div>
+                <div class="kpi-value" id="kpi-conjuge">—</div>
+                <div class="kpi-sub">solicitações</div>
+              </div>
+              <span class="material-icons kpi-icon" style="color:#b8860b">family_restroom</span>
+            </div>
+          </div>
+          <div class="kpi-card roxo">
+            <div class="kpi-row">
+              <div>
+                <div class="kpi-label">Pós-Graduados</div>
+                <div class="kpi-value" id="kpi-pos">—</div>
+                <div class="kpi-sub">ou acima</div>
+              </div>
+              <span class="material-icons kpi-icon" style="color:var(--roxo)">school</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-title">
+              <span class="material-icons">bar_chart</span>
+              Candidatos por Unidade
+            </div>
+            <div id="chart-unidades">
+              <div style="color:#aaa;font-size:12px;">Carregando...</div>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">
+              <span class="material-icons">school</span>
+              Formação Acadêmica
+            </div>
+            <div id="chart-formacao">
+              <div style="color:#aaa;font-size:12px;">Carregando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CANDIDATOS -->
+      <div class="panel" id="panel-candidatos">
+        <div class="page-title" style="margin-bottom:16px;">
+          <span class="material-icons">people</span>
+          Candidatos
+          <span class="count-badge" id="cand-count"></span>
+          <button class="btn-icon" style="margin-left:auto;" onclick="carregarCandidatos(true)">
+            <span class="material-icons">refresh</span> Atualizar
+          </button>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filtros-bar">
+          <input type="search" id="busca-cand"
+                 placeholder="Buscar por nome, matrícula ou e-mail…"
+                 oninput="filtrarLista()">
+          <select id="filtro-unidade" onchange="filtrarLista()">
+            <option value="">Todas as unidades</option>
+          </select>
+          <select id="filtro-formacao" onchange="filtrarLista()">
+            <option value="">Toda formação</option>
+            <option>Graduação</option>
+            <option>Pós-Graduação</option>
+            <option>Mestrado</option>
+            <option>Doutorado</option>
+          </select>
+          <select id="filtro-conjuge" onchange="filtrarLista()">
+            <option value="">Cônjuge: todos</option>
+            <option value="sim">Com cônjuge</option>
+            <option value="nao">Sem cônjuge</option>
+          </select>
+          <select id="filtro-status-conj" onchange="filtrarLista()">
+            <option value="">Status cônjuge: todos</option>
+            <option>Confirmado</option>
+            <option>Pendente</option>
+            <option>Recusado</option>
+          </select>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-wrap">
+          <table class="cand-table" id="cand-table">
+            <thead>
+              <tr>
+                <th>Nome / Cargo</th>
+                <th>Matrícula</th>
+                <th>Unidade</th>
+                <th>Formação</th>
+                <th>Cônjuge</th>
+                <th>Inscrição</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cand-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">
+                <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+                Carregando candidatos...
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="empty-state" id="cand-empty">
+            <span class="material-icons">search_off</span>
+            Nenhum candidato encontrado com os filtros aplicados.
+          </div>
+        </div>
+      </div>
+
+      <!-- CURRÍCULO -->
+      <div class="panel" id="panel-curriculo">
+        <div class="page-title" style="margin-bottom:16px;">
+          <span class="material-icons">description</span>
+          Avaliação de Currículo
+          <span class="count-badge" id="aval-count-curriculo"></span>
+          <button class="btn-icon" style="margin-left:auto;" onclick="carregarAval('curriculo',true)">
+            <span class="material-icons">refresh</span> Atualizar
+          </button>
+        </div>
+        <div class="filtros-bar">
+          <input type="search" id="aval-busca-curriculo"
+                 placeholder="Buscar por nome ou matrícula…"
+                 oninput="filtrarAval('curriculo')">
+          <select id="aval-filtro-unidade-curriculo" onchange="filtrarAval('curriculo')">
+            <option value="">Todas as unidades</option>
+          </select>
+          <select id="aval-filtro-status-curriculo" onchange="filtrarAval('curriculo')">
+            <option value="">Status: todos</option>
+            <option value="Não avaliado">Não avaliado</option>
+            <option value="Rascunho">Rascunho</option>
+            <option value="Concluída">Concluída</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="cand-table">
+            <thead>
+              <tr>
+                <th>Nome / Cargo</th>
+                <th>Matrícula</th>
+                <th>Unidade</th>
+                <th>Nota Geral</th>
+                <th>Status Avaliação</th>
+                <th>Avaliadores</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="aval-tbody-curriculo">
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">
+                <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+                Carregando...
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="empty-state" id="aval-empty-curriculo">
+            <span class="material-icons">search_off</span>
+            Nenhum candidato encontrado com os filtros aplicados.
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTREVISTA -->
+      <div class="panel" id="panel-entrevista">
+        <div class="page-title" style="margin-bottom:16px;">
+          <span class="material-icons">record_voice_over</span>
+          Avaliação de Entrevista
+          <span class="count-badge" id="aval-count-entrevista"></span>
+          <button class="btn-icon" style="margin-left:auto;" onclick="carregarAval('entrevista',true)">
+            <span class="material-icons">refresh</span> Atualizar
+          </button>
+        </div>
+        <div class="filtros-bar">
+          <input type="search" id="aval-busca-entrevista"
+                 placeholder="Buscar por nome ou matrícula…"
+                 oninput="filtrarAval('entrevista')">
+          <select id="aval-filtro-unidade-entrevista" onchange="filtrarAval('entrevista')">
+            <option value="">Todas as unidades</option>
+          </select>
+          <select id="aval-filtro-status-entrevista" onchange="filtrarAval('entrevista')">
+            <option value="">Status: todos</option>
+            <option value="Não avaliado">Não avaliado</option>
+            <option value="Rascunho">Rascunho</option>
+            <option value="Concluída">Concluída</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="cand-table">
+            <thead>
+              <tr>
+                <th>Nome / Cargo</th>
+                <th>Matrícula</th>
+                <th>Unidade</th>
+                <th>Média Critérios</th>
+                <th>Status Avaliação</th>
+                <th>Avaliadores</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="aval-tbody-entrevista">
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">
+                <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+                Carregando...
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="empty-state" id="aval-empty-entrevista">
+            <span class="material-icons">search_off</span>
+            Nenhum candidato encontrado com os filtros aplicados.
+          </div>
+        </div>
+      </div>
+
+      <!-- RESUMO (placeholder) -->
+      <div class="panel" id="panel-resumo">
+        <div class="page-title" style="margin-bottom:16px;">
+          <span class="material-icons">assessment</span>
+          Resumo Geral
+          <span class="count-badge" id="resumo-count"></span>
+          <button class="btn-icon" style="margin-left:auto;" onclick="carregarResumo(true)">
+            <span class="material-icons">refresh</span> Atualizar
+          </button>
+        </div>
+
+        <!-- Cards de métricas -->
+        <div class="resumo-cards" id="resumo-cards" style="display:none;">
+          <div class="resumo-card">
+            <div class="rc-val" id="rc-total">—</div>
+            <div class="rc-lbl">Candidatos</div>
+          </div>
+          <div class="resumo-card">
+            <div class="rc-val rc-azul" id="rc-cur3">—</div>
+            <div class="rc-lbl">Currículo 3/3</div>
+          </div>
+          <div class="resumo-card">
+            <div class="rc-val rc-azul" id="rc-ent3">—</div>
+            <div class="rc-lbl">Entrevista 3/3</div>
+          </div>
+          <div class="resumo-card">
+            <div class="rc-val rc-verde" id="rc-completo">—</div>
+            <div class="rc-lbl">Completos</div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filtros-bar">
+          <input type="search" id="resumo-busca"
+                 placeholder="Buscar por nome ou matrícula…"
+                 oninput="filtrarResumo()">
+          <select id="resumo-filtro-unidade" onchange="filtrarResumo()">
+            <option value="">Todas as unidades</option>
+          </select>
+          <select id="resumo-filtro-status" onchange="filtrarResumo()">
+            <option value="">Status: todos</option>
+            <option value="Completo">Completo</option>
+            <option value="Em andamento">Em andamento</option>
+            <option value="Aguardando">Aguardando</option>
+          </select>
+        </div>
+
+        <div class="table-wrap">
+          <table class="cand-table">
+            <thead>
+              <tr>
+                <th>Nome / Cargo</th>
+                <th>Matrícula</th>
+                <th>Unidade</th>
+                <th>Currículo</th>
+                <th>Entrevista</th>
+                <th>Unid. Indicadas</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="resumo-tbody">
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">
+                <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+                Carregando...
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="empty-state" id="resumo-empty" style="display:none;">
+            <span class="material-icons">search_off</span>
+            Nenhum candidato encontrado com os filtros aplicados.
+          </div>
+        </div>
+      </div>
+
+      <!-- GERENCIAR ACESSO -->
+      <div class="panel" id="panel-acesso">
+        <div class="acesso-header">
+          <div class="page-title" style="margin-bottom:0;">
+            <span class="material-icons">admin_panel_settings</span>
+            Gerenciar Acesso
+          </div>
+          <button class="btn-primary-sm" onclick="abrirModalUsuario(null)">
+            <span class="material-icons">person_add</span>
+            Adicionar Usuário
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="acesso-table" id="acesso-table">
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Unidades</th>
+                <th>Cadastro</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="acesso-tbody">
+              <tr><td colspan="6" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">
+                <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+                Carregando usuários...
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NOVO RECRUTAMENTO — Wizard -->
+      <div class="panel" id="panel-novorec">
+        <div class="page-title" style="margin-bottom:22px;">
+          <span class="material-icons">add_circle_outline</span>
+          Criar Novo Recrutamento
+        </div>
+
+        <!-- ── Stepper ── -->
+        <div class="nr-stepper" id="nr-stepper">
+          <div class="nr-step-wrap" onclick="nrNavegar(1)">
+            <div class="nr-step ativo" id="nr-s1"><span class="material-icons nr-s-icon">edit</span><span class="nr-s-num">1</span></div>
+            <div class="nr-step-lbl">Identificação</div>
+          </div>
+          <div class="nr-line" id="nr-l1"></div>
+          <div class="nr-step-wrap" onclick="nrNavegar(2)">
+            <div class="nr-step" id="nr-s2"><span class="material-icons nr-s-icon">account_tree</span><span class="nr-s-num">2</span></div>
+            <div class="nr-step-lbl">UORGs</div>
+          </div>
+          <div class="nr-line" id="nr-l2"></div>
+          <div class="nr-step-wrap" onclick="nrNavegar(3)">
+            <div class="nr-step" id="nr-s3"><span class="material-icons nr-s-icon">location_city</span><span class="nr-s-num">3</span></div>
+            <div class="nr-step-lbl">Unid. Oportunidade</div>
+          </div>
+          <div class="nr-line" id="nr-l3"></div>
+          <div class="nr-step-wrap" onclick="nrNavegar(4)">
+            <div class="nr-step" id="nr-s4"><span class="material-icons nr-s-icon">school</span><span class="nr-s-num">4</span></div>
+            <div class="nr-step-lbl">Graduações</div>
+          </div>
+          <div class="nr-line" id="nr-l4"></div>
+          <div class="nr-step-wrap" onclick="nrNavegar(5)">
+            <div class="nr-step" id="nr-s5"><span class="material-icons nr-s-icon">check_circle</span><span class="nr-s-num">5</span></div>
+            <div class="nr-step-lbl">Revisão</div>
+          </div>
+        </div>
+
+        <!-- ── Wizard (passos) ── -->
+        <div id="nr-wizard" style="max-width:720px;">
+
+          <!-- PASSO 1 — Identificação -->
+          <div class="nr-passo ativo" id="nr-p1">
+            <div class="nr-passo-titulo">
+              <span class="material-icons">edit</span> Identificação do Recrutamento
+            </div>
+            <div class="nr-passo-desc">Nome que identificará este processo. Será usado como título da planilha no Google Drive.</div>
+            <div class="nr-field">
+              <label class="nr-label">Nome do Recrutamento <span class="nr-req">*</span></label>
+              <input type="text" id="nr-nome"
+                     class="nr-input"
+                     placeholder="Ex: Recrutamento Interno PRF 2026/1"
+                     onkeydown="if(event.key==='Enter')nrProximo()">
+            </div>
+            <div class="nr-field" style="margin-top:14px;">
+              <label class="nr-label">E-mails para Resposta</label>
+              <input type="text" id="nr-emails-resposta"
+                     class="nr-input"
+                     placeholder="Ex: fulano@prf.gov.br, ciclano@prf.gov.br"
+                     style="font-size:13px;">
+              <div style="font-size:11px;color:#7a8fa8;margin-top:4px;">
+                Receberão notificação (com o PDF em anexo) quando o cônjuge de um candidato confirmar a concordância.
+                Separe múltiplos endereços com vírgula.
+              </div>
+            </div>
+            <div class="nr-passo-info">
+              <span class="material-icons">info</span>
+              Serão criadas automaticamente as abas: <strong>respostas, credenciais, avaliacoes, bfi_resultados, rascunhos_bfi, config</strong>
+              além das listas que você definirá nos próximos passos.
+            </div>
+            <div class="nr-nav">
+              <span></span>
+              <button class="btn-concluir" onclick="nrProximo()">
+                Próximo <span class="material-icons">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- PASSO 2 — UORGs -->
+          <div class="nr-passo" id="nr-p2">
+            <div class="nr-passo-titulo">
+              <span class="material-icons">account_tree</span> UORGs — Unidades Organizacionais
+            </div>
+            <div class="nr-passo-desc">
+              Base completa de unidades da PRF. Usada em <strong>todos</strong> os autocompletes de lotação (cônjuge, unidades indicadas na entrevista).
+              Inclua siglas e/ou nomes completos — o que aparecerá para busca.
+            </div>
+
+            <!-- Entrada em lote -->
+            <div class="nr-bulk-card">
+              <div class="nr-label" style="margin-bottom:8px;">
+                Cole a lista (uma unidade por linha)
+                <span style="font-size:11px;font-weight:400;color:#9aabb8;margin-left:6px;">
+                  Formatos aceitos: &nbsp;<code>SIGLA</code>&nbsp; ou &nbsp;<code>SIGLA ; Nome Completo</code>
+                </span>
+              </div>
+              <textarea id="nr-uorgs-bulk" class="nr-textarea" rows="8"
+                        placeholder="SRPRF/AC&#10;SRPRF/AL&#10;SRPRF/AM&#10;SRPRF/AP&#10;SRPRF/BA ; Superintendência Regional PRF/BA&#10;..."></textarea>
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn-primary-sm" onclick="nrProcessarUorgs()">
+                  <span class="material-icons" style="font-size:15px;">playlist_add_check</span> Processar Lista
+                </button>
+                <button class="btn-icon" onclick="nrLimparUorgs()" title="Limpar tudo">
+                  <span class="material-icons">clear_all</span> Limpar
+                </button>
+              </div>
+            </div>
+
+            <!-- Adicionar individual -->
+            <div style="display:flex;gap:8px;align-items:flex-end;margin:14px 0 10px;">
+              <div style="flex:0 0 160px;">
+                <label class="nr-label" style="font-size:10px;">Sigla / Nome Curto</label>
+                <input type="text" id="nr-uorg-sigla" class="nr-input" placeholder="Ex: SRPRF/DF"
+                       onkeydown="if(event.key==='Enter')document.getElementById('nr-uorg-nome').focus()">
+              </div>
+              <div style="flex:1;">
+                <label class="nr-label" style="font-size:10px;">Nome Completo (opcional)</label>
+                <input type="text" id="nr-uorg-nome" class="nr-input" placeholder="Ex: Superintendência Regional PRF/DF"
+                       onkeydown="if(event.key==='Enter')nrAdicionarUorg()">
+              </div>
+              <button class="btn-primary-sm" onclick="nrAdicionarUorg()" style="flex-shrink:0;">
+                <span class="material-icons" style="font-size:15px;">add</span> Adicionar
+              </button>
+            </div>
+
+            <!-- Lista processada -->
+            <div id="nr-uorgs-lista-wrap" style="display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span class="nr-label">Lista processada (<span id="nr-uorgs-count">0</span> UORGs)</span>
+                <button class="btn-icon" style="font-size:11px;" onclick="nrOrdenarUorgs()">
+                  <span class="material-icons" style="font-size:14px;">sort_by_alpha</span> Ordenar A-Z
+                </button>
+              </div>
+              <div class="nr-chips-wrap" id="nr-uorgs-chips"></div>
+            </div>
+
+            <div class="nr-nav">
+              <button class="btn-rascunho" onclick="nrAnterior()"><span class="material-icons">arrow_back</span> Anterior</button>
+              <button class="btn-concluir" onclick="nrProximo()">Próximo <span class="material-icons">arrow_forward</span></button>
+            </div>
+          </div>
+
+          <!-- PASSO 3 — Unidades de Oportunidade -->
+          <div class="nr-passo" id="nr-p3">
+            <div class="nr-passo-titulo">
+              <span class="material-icons">location_city</span> Unidades de Oportunidade
+            </div>
+            <div class="nr-passo-desc">
+              Quais unidades têm vagas neste recrutamento? Aparecem no campo
+              <strong>"Unidade de Oportunidade"</strong> do formulário de inscrição.
+            </div>
+
+            <!-- Seleção das UORGs do passo 2 -->
+            <div id="nr-unid-from-uorgs" style="display:none;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                <span class="nr-label">Selecione entre as UORGs cadastradas:</span>
+                <button class="btn-icon" style="font-size:11px;" onclick="nrSelecionarTodasUnid(true)">Todas</button>
+                <button class="btn-icon" style="font-size:11px;" onclick="nrSelecionarTodasUnid(false)">Nenhuma</button>
+              </div>
+              <div class="nr-chips-wrap" id="nr-unid-chips-uorgs"></div>
+            </div>
+
+            <!-- Adicionar personalizada -->
+            <div style="display:flex;gap:8px;align-items:flex-end;margin:14px 0 10px;">
+              <div style="flex:1;">
+                <label class="nr-label" style="font-size:10px;">Adicionar unidade não listada acima</label>
+                <input type="text" id="nr-unid-custom" class="nr-input" placeholder="Ex: DPRF/SP"
+                       onkeydown="if(event.key==='Enter')nrAdicionarUnidCustom()">
+              </div>
+              <button class="btn-primary-sm" onclick="nrAdicionarUnidCustom()" style="flex-shrink:0;">
+                <span class="material-icons" style="font-size:15px;">add</span> Adicionar
+              </button>
+            </div>
+
+            <!-- Unidades personalizadas -->
+            <div id="nr-unid-custom-wrap" style="display:none;">
+              <div class="nr-label" style="margin-bottom:6px;">Adicionadas manualmente (<span id="nr-unid-custom-count">0</span>)</div>
+              <div class="nr-chips-wrap" id="nr-unid-custom-chips"></div>
+            </div>
+
+            <div id="nr-unid-empty" style="display:none;font-size:12px;color:#9aabb8;padding:10px 0;">
+              Nenhuma unidade selecionada. O campo ficará em branco no formulário — você poderá preencher a aba diretamente na planilha depois.
+            </div>
+
+            <div class="nr-nav">
+              <button class="btn-rascunho" onclick="nrAnterior()"><span class="material-icons">arrow_back</span> Anterior</button>
+              <button class="btn-concluir" onclick="nrProximo()">Próximo <span class="material-icons">arrow_forward</span></button>
+            </div>
+          </div>
+
+          <!-- PASSO 4 — Graduações -->
+          <div class="nr-passo" id="nr-p4">
+            <div class="nr-passo-titulo">
+              <span class="material-icons">school</span> Lista de Graduações
+            </div>
+            <div class="nr-passo-desc">
+              Cursos que aparecem nos autocompletes de <strong>Graduação</strong> e
+              <strong>Pós-Graduação/Especialização</strong> no formulário.
+              Uma entrada por linha. As duas listas são independentes.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <label class="nr-label"><span class="material-icons" style="font-size:14px;vertical-align:middle;">school</span> Graduações</label>
+                  <span class="nr-count-badge" id="nr-grad-count">0</span>
+                </div>
+                <textarea id="nr-grad-lista" class="nr-textarea" rows="14"
+                          oninput="nrContarLinhas('nr-grad-lista','nr-grad-count')"
+                          placeholder="Direito&#10;Administração&#10;Ciência da Computação&#10;Engenharia Civil&#10;Psicologia&#10;Contabilidade&#10;Economia&#10;Medicina&#10;Enfermagem&#10;Pedagogia&#10;..."></textarea>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <label class="nr-label"><span class="material-icons" style="font-size:14px;vertical-align:middle;">workspace_premium</span> Pós-Graduação / Especializações</label>
+                  <span class="nr-count-badge" id="nr-pos-count">0</span>
+                </div>
+                <textarea id="nr-pos-lista" class="nr-textarea" rows="14"
+                          oninput="nrContarLinhas('nr-pos-lista','nr-pos-count')"
+                          placeholder="MBA em Gestão Pública&#10;Pós-Graduação em Direito Público&#10;Especialização em Segurança Pública&#10;MBA em Gestão de Pessoas&#10;..."></textarea>
+              </div>
+            </div>
+            <div class="nr-passo-info" style="margin-top:12px;">
+              <span class="material-icons">info</span>
+              Deixe em branco para preencher a aba <strong>graduacao</strong> diretamente na planilha depois da criação.
+            </div>
+            <div class="nr-nav">
+              <button class="btn-rascunho" onclick="nrAnterior()"><span class="material-icons">arrow_back</span> Anterior</button>
+              <button class="btn-concluir" onclick="nrProximo()">Revisar <span class="material-icons">arrow_forward</span></button>
+            </div>
+          </div>
+
+          <!-- PASSO 5 — Revisão -->
+          <div class="nr-passo" id="nr-p5">
+            <div class="nr-passo-titulo">
+              <span class="material-icons">check_circle</span> Revisão e Criação
+            </div>
+            <div class="nr-passo-desc">Confirme os dados antes de criar a planilha.</div>
+
+            <div id="nr-revisao-body"></div>
+
+            <div class="nr-passo-info" style="background:#fff3e0;border-color:#e65100;color:#5d3a00;">
+              <span class="material-icons" style="color:#e65100;">warning</span>
+              A planilha será criada no seu Google Drive. Após a criação, configure o script com o novo <strong>Spreadsheet ID</strong>.
+            </div>
+            <div class="nr-nav">
+              <button class="btn-rascunho" onclick="nrAnterior()"><span class="material-icons">arrow_back</span> Anterior</button>
+              <button class="btn-concluir" id="novorec-btn" onclick="criarRecrutamento()">
+                <span class="material-icons">rocket_launch</span> Criar Planilha
+              </button>
+            </div>
+          </div>
+
+        </div><!-- /nr-wizard -->
+
+        <!-- ── Resultado (após criação) ── -->
+        <div id="novorec-resultado" style="display:none;max-width:640px;">
+          <div class="card" style="border-top:4px solid #2e7d32;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+              <span class="material-icons" style="color:#2e7d32;font-size:28px;">check_circle</span>
+              <div>
+                <div style="font-weight:700;font-size:15px;color:#1a2332;">Planilha criada com sucesso!</div>
+                <div id="novorec-email-status" style="font-size:12px;color:#7a8a9a;"></div>
+              </div>
+            </div>
+            <div style="background:#FFF9C4;border:1.5px solid #F9A825;border-radius:7px;padding:12px 16px;margin-bottom:12px;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a8a9a;margin-bottom:4px;">ID da Planilha (copie este valor)</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <code id="novorec-id" style="font-size:13px;font-weight:700;color:#1a2332;flex:1;word-break:break-all;"></code>
+                <button class="btn-icon" onclick="copiarTexto('novorec-id')" title="Copiar ID">
+                  <span class="material-icons">content_copy</span>
+                </button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a8a9a;margin-bottom:4px;">Link da Planilha</div>
+              <a id="novorec-url" href="#" target="_blank" rel="noopener"
+                 style="font-size:13px;color:var(--azul-med);word-break:break-all;display:flex;align-items:center;gap:4px;">
+                <span class="material-icons" style="font-size:14px;">open_in_new</span>
+                <span id="novorec-url-txt"></span>
+              </a>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a8a9a;margin-bottom:14px;display:flex;align-items:center;gap:6px;">
+              <span class="material-icons" style="font-size:15px;">settings</span>Próximos Passos
+            </div>
+            <ol style="padding-left:18px;font-size:13px;line-height:2.1;color:#1a2332;">
+              <li>Abra o formulário original → <strong>Extensões → Apps Script</strong></li>
+              <li>Localize: <code style="background:#f0f4f8;padding:1px 6px;border-radius:3px;font-size:12px;">const SPREADSHEET_ID = '...'</code></li>
+              <li>Substitua pelo ID acima e salve (<kbd>Ctrl+S</kbd>)</li>
+              <li><strong>Implantar → Gerenciar implantações → lápis → Nova versão → Implantar</strong></li>
+              <li>Copie o URL de execução e distribua: <code style="background:#f0f4f8;padding:1px 6px;border-radius:3px;font-size:11px;">...exec?pagina=formulario</code></li>
+            </ol>
+            <div style="background:#e8f5e9;border-left:4px solid #2e7d32;border-radius:0 7px 7px 0;padding:10px 14px;margin-top:10px;font-size:12px;color:#1b5e20;">
+              A aba <strong>INSTRUÇÕES</strong> da nova planilha contém todas estas orientações com o ID já preenchido.
+            </div>
+          </div>
+          <div style="margin-top:12px;text-align:right;">
+            <button class="btn-icon" onclick="resetarFormNovoRec()">
+              <span class="material-icons">add</span> Criar outro recrutamento
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /panel-novorec -->
+
+    </main>
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<!-- Modal — Avaliação (Currículo / Entrevista) -->
+<div class="aval-overlay" id="aval-overlay" onclick="if(event.target===this)fecharModalAval()">
+  <div class="aval-modal">
+    <div class="aval-modal-hdr">
+      <div>
+        <div class="amh-tipo"  id="aval-m-tipo">—</div>
+        <div class="amh-nome"  id="aval-m-nome">—</div>
+        <div class="amh-sub"   id="aval-m-sub">—</div>
+        <div class="amh-cv"    id="aval-m-cv"></div>
+      </div>
+      <button class="modal-close" onclick="fecharModalAval()">×</button>
+    </div>
+    <div class="aval-modal-body" id="aval-modal-body">
+      <!-- conteúdo gerado dinamicamente -->
+    </div>
+    <div class="aval-modal-ftr">
+      <button class="btn-cancel" onclick="fecharModalAval()">Cancelar</button>
+      <button class="btn-rascunho" id="btn-aval-rascunho" onclick="salvarAval('Rascunho')">
+        Salvar Rascunho
+      </button>
+      <button class="btn-concluir" id="btn-aval-concluir" onclick="salvarAval('Concluída')">
+        <span class="material-icons">check_circle</span> Concluir Avaliação
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal — Diagnóstico da Planilha -->
+<div class="modal-overlay" id="diag-modal" onclick="if(event.target===this)document.getElementById('diag-modal').classList.remove('aberto')">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header" style="background:#e65100;">
+      <h3>Diagnóstico da Planilha</h3>
+      <button class="modal-close" onclick="document.getElementById('diag-modal').classList.remove('aberto')">×</button>
+    </div>
+    <div class="modal-body" id="diag-modal-body" style="overflow-y:auto;max-height:70vh;">
+      <div style="text-align:center;padding:24px;color:#9aabb8;">Carregando...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('diag-modal').classList.remove('aberto')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal — Adicionar / Editar Usuário -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)fecharModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-titulo">Adicionar Usuário</h3>
+      <button class="modal-close" onclick="fecharModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-field">
+        <label>E-mail Institucional <span class="obrig">*</span></label>
+        <input type="email" id="modal-email" placeholder="nome@prf.gov.br"
+               oninput="validarModalEmail()">
+        <div class="field-help" id="modal-email-erro" style="color:#c62828;display:none;">
+          Use um e-mail @prf.gov.br válido.
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Nome Completo</label>
+        <input type="text" id="modal-nome" placeholder="Nome do servidor">
+      </div>
+      <div class="form-field">
+        <label>Perfil <span class="obrig">*</span></label>
+        <select id="modal-perfil" onchange="atualizarCampoUnidades()">
+          <option value="AVALIADOR">AVALIADOR</option>
+          <option value="ADMINISTRADOR">ADMINISTRADOR</option>
+        </select>
+      </div>
+      <div class="form-field" id="campo-unidades">
+        <label>Unidades Autorizadas <span class="obrig">*</span></label>
+        <textarea id="modal-unidades" placeholder="Ex: SRPRF/GO; SRPRF/MT"></textarea>
+        <div class="field-help">Separe as siglas das unidades com ponto-e-vírgula (;). ADMINISTRADOR tem acesso a todas.</div>
+      </div>
+      <div class="form-field" id="campo-status" style="display:none;">
+        <label>Status</label>
+        <select id="modal-status">
+          <option value="Ativo">Ativo</option>
+          <option value="Inativo">Inativo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-save" id="btn-salvar-modal" onclick="salvarUsuario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer overlay + drawer de detalhe do candidato -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="fecharDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-nome" id="det-nome">—</div>
+      <div class="drawer-sub"  id="det-sub">—</div>
+    </div>
+    <button class="drawer-close" onclick="fecharDrawer()">×</button>
+  </div>
+  <div class="drawer-body" id="drawer-body">
+    <div style="padding:32px;text-align:center;color:#9aabb8;">
+      <div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>
+      Carregando...
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmação de exclusão -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-box-header">
+      <span class="material-icons">delete_forever</span>
+      <h3>Confirmar Exclusão</h3>
+    </div>
+    <div class="confirm-box-body">
+      <p>Tem certeza que deseja <strong>excluir permanentemente</strong> o usuário:</p>
+      <p style="margin-top:10px;font-weight:700;color:#1a2332;" id="confirm-nome-usuario">—</p>
+      <p style="margin-top:4px;font-size:12px;color:#9aabb8;" id="confirm-email-usuario">—</p>
+      <p style="margin-top:12px;font-size:12px;color:#c62828;">Esta ação não pode ser desfeita. Para desativar temporariamente, use "Revogar" em vez de excluir.</p>
+    </div>
+    <div class="confirm-box-footer">
+      <button class="btn-confirm-cancel" onclick="fecharConfirmacao()">Cancelar</button>
+      <button class="btn-confirm-ok" id="btn-confirm-excluir" onclick="confirmarExclusao()">
+        <span class="material-icons">delete_forever</span>
+        Excluir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal — Detalhe do Resumo Geral -->
+<div class="aval-overlay" id="detalhe-overlay" onclick="if(event.target===this)fecharDetalhe()">
+  <div class="aval-modal" style="max-width:720px;">
+    <div class="aval-modal-hdr" id="detalhe-hdr">
+      <div>
+        <div class="amh-tipo">Resumo de Avaliações</div>
+        <div class="amh-nome" id="det-nome">—</div>
+        <div class="amh-sub"  id="det-sub">—</div>
+        <div class="amh-cv"   id="det-cv"></div>
+      </div>
+      <button class="modal-close" onclick="fecharDetalhe()">×</button>
+    </div>
+    <div class="aval-modal-body" id="detalhe-body">
+      <!-- gerado dinamicamente -->
+    </div>
+    <div class="aval-modal-ftr">
+      <button class="btn-cancel" onclick="fecharDetalhe()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  // ── Estado ──────────────────────────────────────────────────────
+  var _usuario   = null;
+  var _dashboard = null;
+  var _painelAtivo = 'dashboard';
+  var _uorgsList   = [];   // lista de UORGs para tag-input de unidades indicadas
+
+  // ── Init ────────────────────────────────────────────────────────
+  window.addEventListener('load', function () {
+    google.script.run
+      .withSuccessHandler(onInit)
+      .withFailureHandler(onAcessoNegado)
+      .inicializarPainel();
+  });
+
+  function onInit(res) {
+    _usuario   = res.usuario;
+    _dashboard = res.dashboard;
+    _uorgsList = res.uorgs || [];
+    document.getElementById('tela-loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderUsuario();
+    renderDashboard();
+  }
+
+  function onAcessoNegado(err) {
+    document.getElementById('tela-loading').style.display = 'none';
+    document.getElementById('msg-acesso-negado').textContent =
+      err.message || 'Você não tem permissão para acessar este painel.';
+    document.getElementById('tela-acesso-negado').style.display = 'flex';
+  }
+
+  // ── Renderizar dados do usuário na topbar / sidebar ─────────────
+  function renderUsuario() {
+    var u = _usuario;
+    document.getElementById('user-nome').textContent  = u.nome;
+    document.getElementById('user-email').textContent = u.email;
+    var iniciais = u.nome.split(' ').map(function(p){ return p[0]; }).slice(0,2).join('').toUpperCase();
+    document.getElementById('avatar-iniciais').textContent = iniciais || '?';
+    var badge = document.getElementById('badge-perfil');
+    badge.textContent = u.perfil;
+    badge.className   = 'badge-perfil ' + (u.perfil === 'ADMINISTRADOR' ? 'admin' : 'avaliador');
+
+    // Mostrar menu de admin se for ADMINISTRADOR
+    if (u.perfil === 'ADMINISTRADOR') {
+      document.getElementById('divider-admin').style.display      = '';
+      document.getElementById('nav-section-admin').style.display  = '';
+      document.getElementById('nav-acesso').style.display         = '';
+      document.getElementById('nav-novorec').style.display        = '';
+    }
+  }
+
+  // ── Navegação ───────────────────────────────────────────────────
+  function navegar(painel) {
+    var navEl = document.getElementById('nav-' + painel);
+    if (navEl && navEl.classList.contains('desabilitado')) return;
+
+    // Remove ativo de todos
+    document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('ativo'); });
+    document.querySelectorAll('.panel').forEach(function(el) { el.classList.remove('ativo'); });
+
+    if (navEl) navEl.classList.add('ativo');
+    var panelEl = document.getElementById('panel-' + painel);
+    if (panelEl) panelEl.classList.add('ativo');
+
+    var titulos = {
+      dashboard:  'Dashboard',
+      candidatos: 'Candidatos',
+      curriculo:  'Avaliação de Currículo',
+      entrevista: 'Avaliação de Entrevista',
+      resumo:     'Resumo Geral',
+      acesso:     'Gerenciar Acesso',
+      novorec:    'Criar Novo Recrutamento'
+    };
+    document.getElementById('topbar-titulo').textContent = titulos[painel] || '';
+    _painelAtivo = painel;
+
+    // Carrega candidatos na primeira vez que abre o painel
+    if (painel === 'candidatos' && !_candidatosCarregados) {
+      carregarCandidatos(false);
+    }
+    // Carrega avaliações de currículo / entrevista na primeira vez
+    if (painel === 'curriculo'  && !_avalLoaded['curriculo'])  carregarAval('curriculo',  false);
+    if (painel === 'entrevista' && !_avalLoaded['entrevista']) carregarAval('entrevista', false);
+    // Carrega resumo geral na primeira vez
+    if (painel === 'resumo' && !_resumoCarregado) carregarResumo(false);
+    // Carrega acesso na primeira vez (admin only)
+    if (painel === 'acesso' && !_acessoCarregado) {
+      carregarAcesso(false);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  CANDIDATOS — Parte 2
+  // ══════════════════════════════════════════════════════════════════
+  var _todosOsCandidatos   = [];
+  var _candidatosFiltrados = [];
+  var _candidatosCarregados = false;
+
+  // ── Carrega lista do servidor ────────────────────────────────────
+  function carregarCandidatos(forcar) {
+    if (!forcar && _candidatosCarregados) return;
+    document.getElementById('cand-tbody').innerHTML =
+      '<tr><td colspan="7" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">'
+      + '<div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>'
+      + 'Carregando candidatos...</td></tr>';
+    document.getElementById('cand-empty').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        _todosOsCandidatos  = lista;
+        _candidatosCarregados = true;
+        popularFiltroUnidade();
+        filtrarLista();
+      })
+      .withFailureHandler(function(err) {
+        mostrarToast('Erro ao carregar candidatos: ' + (err.message || 'tente novamente.'), 'erro');
+        document.getElementById('cand-tbody').innerHTML =
+          '<tr><td colspan="7" style="text-align:center;padding:32px;color:#c62828;font-size:13px;">'
+          + 'Erro ao carregar. Clique em Atualizar para tentar novamente.</td></tr>';
+      })
+      .listarCandidatos();
+  }
+
+  // ── Popula select de unidades ────────────────────────────────────
+  function popularFiltroUnidade() {
+    var sel  = document.getElementById('filtro-unidade');
+    var unids = {};
+    _todosOsCandidatos.forEach(function(c) { if (c.unidade) unids[c.unidade] = true; });
+    var html = '<option value="">Todas as unidades</option>';
+    Object.keys(unids).sort().forEach(function(u) {
+      html += '<option>' + _esc(u) + '</option>';
+    });
+    sel.innerHTML = html;
+  }
+
+  // ── Filtra a lista localmente ────────────────────────────────────
+  function filtrarLista() {
+    var busca    = document.getElementById('busca-cand').value.toLowerCase().trim();
+    var unidade  = document.getElementById('filtro-unidade').value;
+    var formacao = document.getElementById('filtro-formacao').value;
+    var conj     = document.getElementById('filtro-conjuge').value;
+    var stConj   = document.getElementById('filtro-status-conj').value;
+
+    _candidatosFiltrados = _todosOsCandidatos.filter(function(c) {
+      if (busca && !(
+        c.nome.toLowerCase().includes(busca) ||
+        c.matricula.toLowerCase().includes(busca) ||
+        c.email.toLowerCase().includes(busca)
+      )) return false;
+      if (unidade  && c.unidade  !== unidade)  return false;
+      if (formacao && c.formacao !== formacao)  return false;
+      if (conj === 'sim' && !c.temConjuge)      return false;
+      if (conj === 'nao' &&  c.temConjuge)      return false;
+      if (stConj && c.statusConjuge !== stConj) return false;
+      return true;
+    });
+
+    renderTabela();
+    var total = _candidatosFiltrados.length;
+    var shown = total + ' de ' + _todosOsCandidatos.length;
+    document.getElementById('cand-count').textContent = shown + ' candidato' + (total !== 1 ? 's' : '');
+  }
+
+  // ── Renderiza tabela ─────────────────────────────────────────────
+  function renderTabela() {
+    var tbody = document.getElementById('cand-tbody');
+    var empty = document.getElementById('cand-empty');
+
+    if (_candidatosFiltrados.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    var formClasses = { 'Graduação':'grad','Pós-Graduação':'pos','Mestrado':'mest','Doutorado':'dout','Não informado':'ni' };
+    var conjClasses = { 'Confirmado':'confirmado','Pendente':'pendente','Recusado':'recusado','N/A':'na' };
+
+    tbody.innerHTML = _candidatosFiltrados.map(function(c) {
+      var iniciais = c.nome.split(' ').filter(Boolean).map(function(p){return p[0];}).slice(0,2).join('').toUpperCase() || '?';
+      var fc = formClasses[c.formacao] || 'ni';
+      var cc = conjClasses[c.statusConjuge] || 'na';
+      var conjBadge = c.temConjuge
+        ? '<span class="badge-conj ' + cc + '">' + c.statusConjuge + '</span>'
+        : '<span class="badge-conj na">N/A</span>';
+      var dt = c.dataHora ? c.dataHora.toString().substring(0,10) : '—';
+      return '<tr onclick="abrirDrawer(\'' + _esc(c.email).replace(/'/g,"\\'") + '\')">'
+        + '<td><div class="cand-nome-wrap">'
+        + '<div class="cand-avatar">' + iniciais + '</div>'
+        + '<div><div class="cand-nome">' + _esc(c.nome) + '</div>'
+        + '<div class="cand-cargo">' + _esc(c.cargo) + '</div></div>'
+        + '</div></td>'
+        + '<td>' + _esc(c.matricula) + '</td>'
+        + '<td>' + _esc(c.unidade)   + '</td>'
+        + '<td><span class="badge-form ' + fc + '">' + c.formacao + '</span></td>'
+        + '<td>' + conjBadge + '</td>'
+        + '<td style="color:#9aabb8;font-size:12px;">' + dt + '</td>'
+        + '<td style="text-align:right;"><span class="material-icons" style="font-size:18px;color:#9aabb8;">chevron_right</span></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  DRAWER — Detalhe do candidato
+  // ══════════════════════════════════════════════════════════════════
+  function abrirDrawer(email) {
+    document.getElementById('drawer-overlay').style.display = 'block';
+    document.getElementById('drawer').classList.add('aberto');
+    document.getElementById('det-nome').textContent = 'Carregando...';
+    document.getElementById('det-sub').textContent  = '';
+    document.getElementById('drawer-body').innerHTML =
+      '<div style="padding:32px;text-align:center;color:#9aabb8;">'
+      + '<div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>Carregando...</div>';
+
+    google.script.run
+      .withSuccessHandler(renderDrawer)
+      .withFailureHandler(function(err) {
+        mostrarToast(err.message || 'Erro ao carregar candidato.', 'erro');
+        fecharDrawer();
+      })
+      .obterCandidato(email);
+  }
+
+  function fecharDrawer() {
+    document.getElementById('drawer').classList.remove('aberto');
+    document.getElementById('drawer-overlay').style.display = 'none';
+  }
+
+  function renderDrawer(c) {
+    document.getElementById('det-nome').textContent = c.nome;
+    document.getElementById('det-sub').textContent  = c.cargo + ' • ' + c.unidade;
+
+    // Big Five
+    var bfiDims = [
+      { k:'ext',   nome:'Extroversão',            cor:'#1565C0', v: c.bfi.ext   },
+      { k:'amab',  nome:'Amabilidade',            cor:'#2e7d32', v: c.bfi.amab  },
+      { k:'cons',  nome:'Conscienciosidade',      cor:'#e65100', v: c.bfi.cons  },
+      { k:'estab', nome:'Estabilidade Emocional', cor:'#6a1b9a', v: c.bfi.estab },
+      { k:'abert', nome:'Abertura à Experiência', cor:'#00695c', v: c.bfi.abert }
+    ];
+    var bfiDescs = {
+      ext:  { alto:'Comunicativo(a), assertivo(a) e cheio(a) de energia.',   medio:'Equilibrado(a) entre sociabilidade e introspecção.', baixo:'Reservado(a) e introspectivo(a).' },
+      amab: { alto:'Cooperativo(a), gentil e empático(a).',                  medio:'Equilibrado(a) entre cooperação e assertividade.',   baixo:'Direto(a) e independente.' },
+      cons: { alto:'Organizado(a), disciplinado(a) e confiável.',            medio:'Razoavelmente organizado(a), equilibra estrutura.',  baixo:'Flexível e espontâneo(a).' },
+      estab:{ alto:'Calmo(a), equilibrado(a) e resistente ao estresse.',     medio:'Relativamente estável emocionalmente.',              baixo:'Mais sensível emocionalmente.' },
+      abert:{ alto:'Criativo(a), curioso(a) e aberto(a) ao novo.',           medio:'Equilibrado(a) entre tradição e inovação.',          baixo:'Prático(a) e convencional.' }
+    };
+
+    function interpretarBFI(v) {
+      if (v >= 3.6) return { nivel:'Alto',  cls:'alto',  cor:'#2e7d32' };
+      if (v >= 2.5) return { nivel:'Médio', cls:'medio', cor:'#e65100' };
+      return             { nivel:'Baixo', cls:'baixo', cor:'#c62828' };
+    }
+
+    var bfiHtml = bfiDims.map(function(d) {
+      if (!d.v) return '';
+      var interp = interpretarBFI(d.v);
+      var pct    = Math.round(((d.v - 1) / 4) * 100);
+      var desc   = (bfiDescs[d.k] || {})[interp.nivel.toLowerCase()] || '';
+      return '<div class="bfi-dim">'
+        + '<div class="bfi-dim-header">'
+        + '<span class="bfi-dim-nome">' + d.nome + '</span>'
+        + '<div style="display:flex;align-items:center;gap:6px;">'
+        + '<span class="bfi-dim-score" style="color:' + d.cor + ';">' + d.v.toFixed(2) + '</span>'
+        + '<span class="bfi-dim-nivel ' + interp.cls + '">' + interp.nivel + '</span>'
+        + '</div></div>'
+        + '<div class="bfi-track"><div class="bfi-fill" style="width:' + pct + '%;background:' + d.cor + ';"></div></div>'
+        + (desc ? '<div class="bfi-desc">' + _esc(desc) + '</div>' : '')
+        + '</div>';
+    }).join('');
+
+    var temBFI = c.bfi.ext || c.bfi.amab;
+
+    // Formação
+    var fItems = [];
+    if (c.graduacoes)    fItems.push(['Graduação',     c.graduacoes]);
+    if (c.posGraduacoes) fItems.push(['Pós-Graduação', c.posGraduacoes]);
+    if (c.mestrados)     fItems.push(['Mestrado',       c.mestrados]);
+    if (c.doutorados)    fItems.push(['Doutorado',      c.doutorados]);
+    var formHtml = fItems.length
+      ? fItems.map(function(f){ return '<div class="info-item full"><label>' + f[0] + '</label><span>' + _esc(f[1]) + '</span></div>'; }).join('')
+      : '<div class="info-item full"><span style="color:#9aabb8;">Não informado</span></div>';
+
+    // Cônjuge
+    var conjHtml = '';
+    if (c.temConjuge) {
+      var scls = { 'Confirmado':'confirmado','Pendente':'pendente','Recusado':'recusado' }[c.statusConjuge] || 'na';
+      conjHtml = '<div class="drawer-section">'
+        + '<div class="drawer-sec-title"><span class="material-icons">family_restroom</span>Acompanhamento do Cônjuge</div>'
+        + '<div style="margin-bottom:12px;"><span class="badge-conj ' + scls + '" style="font-size:11px;padding:3px 10px;">'
+        + (c.statusConjuge||'Pendente') + '</span>'
+        + (c.dataConfirmacao ? ' <span style="font-size:11px;color:#9aabb8;">em ' + _esc(c.dataConfirmacao) + '</span>' : '')
+        + '</div>'
+        + '<div class="info-grid">'
+        + _iItem('Nome',       c.conjugeNome)
+        + _iItem('Matrícula',  c.conjugeMatricula)
+        + _iItem('E-mail',     c.conjugeEmail)
+        + _iItem('Tipo de União', c.tipoUniao)
+        + _iItem('Data da União', c.dataUniao)
+        + _iItem('Lotação 1',  c.lotConjuge1)
+        + _iItem('Lotação 2',  c.lotConjuge2)
+        + _iItem('Endereço 1', c.endConjuge1, true)
+        + _iItem('Endereço 2', c.endConjuge2, true)
+        + '</div></div>';
+    }
+
+    // PDFs
+    var pdfLinks = [];
+    if (c.pdfRespostas)   pdfLinks.push([c.pdfRespostas,   'Formulário completo de respostas', 'description']);
+    if (c.pdfTermo)       pdfLinks.push([c.pdfTermo,       'Termo de compromisso assinado',    'task']);
+    if (c.pdfConcordancia)pdfLinks.push([c.pdfConcordancia,'Concordância do cônjuge',          'family_restroom']);
+    if (c.curriculo)      pdfLinks.push([c.curriculo,      'Currículo SouGov',                 'link']);
+    var pdfHtml = pdfLinks.length
+      ? pdfLinks.map(function(p){ return '<a class="pdf-link" href="' + _esc(p[0]) + '" target="_blank">'
+          + '<span class="material-icons">' + p[2] + '</span>' + _esc(p[1]) + '</a>'; }).join('')
+      : '<span style="font-size:13px;color:#9aabb8;">Nenhum documento disponível.</span>';
+
+    document.getElementById('drawer-body').innerHTML =
+      // Dados pessoais
+      '<div class="drawer-section">'
+      + '<div class="drawer-sec-title"><span class="material-icons">badge</span>Dados Pessoais</div>'
+      + '<div class="info-grid">'
+      + _iItem('E-mail',     c.email, true)
+      + _iItem('Matrícula',  c.matricula)
+      + _iItem('DDD + Tel.', (c.ddd && c.telefone) ? '(' + c.ddd + ') ' + c.telefone : (c.telefone||'—'))
+      + _iItem('Data insc.', c.dataHora ? c.dataHora.toString().substring(0,10) : '—')
+      + '</div></div>'
+      // Conhecimento da unidade
+      + (c.conhecimento ? '<div class="drawer-section"><div class="drawer-sec-title">'
+        + '<span class="material-icons">location_city</span>Conhecimento da Unidade</div>'
+        + '<div style="font-size:13px;color:#1a2332;line-height:1.6;">' + _esc(c.conhecimento) + '</div></div>' : '')
+      // Formação
+      + '<div class="drawer-section"><div class="drawer-sec-title"><span class="material-icons">school</span>Formação Acadêmica</div>'
+      + '<div class="info-grid">' + formHtml + '</div></div>'
+      // Big Five
+      + (temBFI ? '<div class="drawer-section"><div class="drawer-sec-title"><span class="material-icons">psychology</span>Perfil Comportamental — BFI-44</div>'
+        + bfiHtml + '</div>' : '')
+      // Cônjuge
+      + conjHtml
+      // Documentos
+      + '<div class="drawer-section"><div class="drawer-sec-title"><span class="material-icons">folder_open</span>Documentos</div>'
+      + pdfHtml + '</div>';
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────
+  function _iItem(label, val, full) {
+    return '<div class="info-item' + (full ? ' full' : '') + '">'
+      + '<label>' + label + '</label><span>' + _esc(val || '—') + '</span></div>';
+  }
+  function _esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  GERENCIAR ACESSO — Parte 4
+  // ══════════════════════════════════════════════════════════════════
+  var _listaAcesso   = [];
+  var _acessoCarregado = false;
+  var _editandoEmail   = null; // null = novo usuário
+
+  // ── Carrega lista do servidor ────────────────────────────────────
+  function carregarAcesso(forcar) {
+    if (!forcar && _acessoCarregado) return;
+    document.getElementById('acesso-tbody').innerHTML =
+      '<tr><td colspan="6" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">'
+      + '<div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>'
+      + 'Carregando usuários...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        _listaAcesso     = lista;
+        _acessoCarregado = true;
+        renderTabelaAcesso();
+      })
+      .withFailureHandler(function(err) {
+        var msg = err.message || 'Erro desconhecido.';
+        document.getElementById('acesso-tbody').innerHTML =
+          '<tr><td colspan="6" style="text-align:center;padding:32px;color:#c62828;font-size:13px;">'
+          + '<span class="material-icons" style="font-size:28px;display:block;margin-bottom:8px;color:#ef9a9a;">error_outline</span>'
+          + 'Falha ao carregar usuários:<br><strong>' + _esc(msg) + '</strong>'
+          + '<br><br><button class="btn-icon" onclick="carregarAcesso(true)">'
+          + '<span class="material-icons">refresh</span> Tentar novamente</button>'
+          + '</td></tr>';
+        mostrarToast('Erro ao carregar usuários: ' + msg, 'erro', 6000);
+      })
+      .listarCredenciais();
+  }
+
+  // ── Renderiza tabela de usuários ─────────────────────────────────
+  function renderTabelaAcesso() {
+    var tbody    = document.getElementById('acesso-tbody');
+    var meEmail  = _usuario ? _usuario.email.toLowerCase() : '';
+
+    if (!_listaAcesso.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">Nenhum usuário cadastrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = _listaAcesso.map(function(u) {
+      var isAdmin   = u.perfil === 'ADMINISTRADOR';
+      var isAtivo   = String(u.status).toLowerCase() === 'ativo';
+      var isSelf    = u.email.toLowerCase() === meEmail;
+      var iniciais  = String(u.nome||u.email).split(' ').map(function(p){return p[0];}).slice(0,2).join('').toUpperCase() || '?';
+      var unidTxt   = isAdmin ? '<em style="color:#7a8a9a;">Todas</em>' : _esc(u.unidades||'—');
+      var statusBadge = '<span class="badge-status ' + (isAtivo?'ativo':'inativo') + '">'
+        + (isAtivo?'Ativo':'Inativo') + '</span>';
+      var perfilBadge = '<span class="badge-perfil ' + (isAdmin?'admin':'avaliador') + '">'
+        + _esc(u.perfil) + '</span>';
+      var btnStatus = isSelf
+        ? '<button class="btn-acao ' + (isAtivo?'revogar':'ativar') + '" disabled title="Você não pode alterar seu próprio acesso.">'
+          + '<span class="material-icons">' + (isAtivo?'block':'check_circle') + '</span>'
+          + (isAtivo?'Revogar':'Ativar') + '</button>'
+        : '<button class="btn-acao ' + (isAtivo?'revogar':'ativar') + '" onclick="alterarStatus(\'' + _esc(u.email).replace(/'/g,"\\'") + '\',\'' + (isAtivo?'Inativo':'Ativo') + '\')">'
+          + '<span class="material-icons">' + (isAtivo?'block':'check_circle') + '</span>'
+          + (isAtivo?'Revogar':'Ativar') + '</button>';
+
+      var emailEsc = _esc(u.email).replace(/'/g,"\\'");
+      var btnExcluir = isSelf
+        ? '<button class="btn-acao excluir" disabled title="Você não pode excluir seu próprio cadastro.">'
+          + '<span class="material-icons">delete</span>Excluir</button>'
+        : '<button class="btn-acao excluir" onclick="pedirConfirmacaoExclusao(\'' + emailEsc + '\',\'' + _esc(u.nome||u.email).replace(/'/g,"\\'") + '\')">'
+          + '<span class="material-icons">delete</span>Excluir</button>';
+
+      return '<tr>'
+        + '<td><div class="cand-nome-wrap">'
+        + '<div class="cand-avatar" style="width:32px;height:32px;font-size:11px;">' + iniciais + '</div>'
+        + '<div><div class="cand-nome">' + _esc(u.nome||'—') + '</div>'
+        + '<div class="cand-cargo">' + _esc(u.email) + '</div></div></div></td>'
+        + '<td>' + perfilBadge + '</td>'
+        + '<td><div class="unid-cell" title="' + _esc(u.unidades||'') + '">' + unidTxt + '</div></td>'
+        + '<td style="font-size:12px;color:#9aabb8;">' + _esc(u.dataCadastro||'—') + '</td>'
+        + '<td>' + statusBadge + '</td>'
+        + '<td><div class="acoes-cell">'
+        + '<button class="btn-acao editar" onclick="abrirModalUsuario(\'' + emailEsc + '\')">'
+        + '<span class="material-icons">edit</span>Editar</button>'
+        + btnStatus
+        + btnExcluir
+        + '</div></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  // ── Altera status (Ativo ↔ Inativo) ─────────────────────────────
+  function alterarStatus(email, novoStatus) {
+    // Busca o usuário na lista
+    var u = _listaAcesso.filter(function(x){ return x.email.toLowerCase() === email.toLowerCase(); })[0];
+    if (!u) return;
+    var dados = {
+      email: u.email, nome: u.nome, perfil: u.perfil,
+      unidades: u.unidades, status: novoStatus
+    };
+    google.script.run
+      .withSuccessHandler(function() {
+        u.status = novoStatus;
+        renderTabelaAcesso();
+        mostrarToast('Acesso ' + (novoStatus === 'Ativo' ? 'reativado' : 'revogado') + ' com sucesso.', 'sucesso');
+      })
+      .withFailureHandler(function(err) {
+        mostrarToast(err.message || 'Erro ao alterar status.', 'erro');
+      })
+      .salvarCredencial(dados);
+  }
+
+  // ── Modal: abrir para novo ou editar ────────────────────────────
+  function abrirModalUsuario(email) {
+    _editandoEmail = email;
+    var modal = document.getElementById('modal-overlay');
+
+    if (!email) {
+      // Novo usuário
+      document.getElementById('modal-titulo').textContent = 'Adicionar Usuário';
+      document.getElementById('modal-email').value    = '';
+      document.getElementById('modal-email').disabled = false;
+      document.getElementById('modal-nome').value     = '';
+      document.getElementById('modal-perfil').value   = 'AVALIADOR';
+      document.getElementById('modal-unidades').value = '';
+      document.getElementById('modal-unidades').disabled = false;
+      document.getElementById('campo-unidades').style.display = '';
+      document.getElementById('campo-status').style.display   = 'none';
+    } else {
+      // Editar existente
+      var u = _listaAcesso.filter(function(x){ return x.email.toLowerCase() === email.toLowerCase(); })[0];
+      if (!u) return;
+      document.getElementById('modal-titulo').textContent = 'Editar Usuário';
+      document.getElementById('modal-email').value    = u.email;
+      document.getElementById('modal-email').disabled = true;
+      document.getElementById('modal-nome').value     = u.nome  || '';
+      document.getElementById('modal-perfil').value   = u.perfil || 'AVALIADOR';
+      document.getElementById('modal-unidades').value = (u.perfil === 'ADMINISTRADOR') ? '' : (u.unidades || '');
+      document.getElementById('modal-status').value   = u.status || 'Ativo';
+      document.getElementById('campo-status').style.display = '';
+    }
+    atualizarCampoUnidades();
+    document.getElementById('modal-email-erro').style.display = 'none';
+    document.getElementById('btn-salvar-modal').disabled = false;
+    modal.classList.add('aberto');
+  }
+
+  function fecharModal() {
+    document.getElementById('modal-overlay').classList.remove('aberto');
+    _editandoEmail = null;
+  }
+
+  // ── Ativa/desativa campo de unidades conforme perfil ────────────
+  function atualizarCampoUnidades() {
+    var perfil = document.getElementById('modal-perfil').value;
+    var campo  = document.getElementById('campo-unidades');
+    var input  = document.getElementById('modal-unidades');
+    if (perfil === 'ADMINISTRADOR') {
+      input.disabled = true;
+      input.value    = '';
+      input.placeholder = 'Acesso total (automático para ADMINISTRADOR)';
+    } else {
+      input.disabled = false;
+      input.placeholder = 'Ex: SRPRF/GO; SRPRF/MT';
+    }
+  }
+
+  // ── Validação de e-mail no modal ─────────────────────────────────
+  function validarModalEmail() {
+    var val  = document.getElementById('modal-email').value.trim();
+    var erro = document.getElementById('modal-email-erro');
+    if (val && !val.toLowerCase().endsWith('@prf.gov.br')) {
+      erro.style.display = 'block';
+    } else {
+      erro.style.display = 'none';
+    }
+  }
+
+  // ── Salvar (criar ou editar) ─────────────────────────────────────
+  function salvarUsuario() {
+    var email   = document.getElementById('modal-email').value.trim();
+    var nome    = document.getElementById('modal-nome').value.trim();
+    var perfil  = document.getElementById('modal-perfil').value;
+    var unidades= document.getElementById('modal-unidades').value.trim();
+    var status  = document.getElementById('modal-status').value || 'Ativo';
+
+    if (!email || !email.toLowerCase().endsWith('@prf.gov.br')) {
+      document.getElementById('modal-email-erro').style.display = 'block';
+      document.getElementById('modal-email').focus();
+      return;
+    }
+    if (perfil === 'AVALIADOR' && !unidades) {
+      mostrarToast('Informe as unidades autorizadas para o AVALIADOR.', 'aviso');
+      document.getElementById('modal-unidades').focus();
+      return;
+    }
+
+    var btnSalvar = document.getElementById('btn-salvar-modal');
+    btnSalvar.disabled    = true;
+    btnSalvar.textContent = 'Salvando...';
+
+    var dados = { email: email, nome: nome, perfil: perfil, unidades: unidades, status: status };
+
+    google.script.run
+      .withSuccessHandler(function(resultado) {
+        btnSalvar.disabled    = false;
+        btnSalvar.textContent = 'Salvar';
+        fecharModal();
+        _acessoCarregado = false;
+        carregarAcesso(true);
+        mostrarToast(resultado === 'criado'
+          ? 'Usuário cadastrado com sucesso!'
+          : 'Dados atualizados com sucesso!', 'sucesso');
+      })
+      .withFailureHandler(function(err) {
+        btnSalvar.disabled    = false;
+        btnSalvar.textContent = 'Salvar';
+        mostrarToast(err.message || 'Erro ao salvar.', 'erro');
+      })
+      .salvarCredencial(dados);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  EXCLUIR USUÁRIO — confirmação em duas etapas
+  // ══════════════════════════════════════════════════════════════════
+  var _excluindoEmail = null;
+
+  function pedirConfirmacaoExclusao(email, nome) {
+    _excluindoEmail = email;
+    document.getElementById('confirm-nome-usuario').textContent  = nome || email;
+    document.getElementById('confirm-email-usuario').textContent = email;
+    document.getElementById('btn-confirm-excluir').disabled      = false;
+    document.getElementById('btn-confirm-excluir').textContent   = '';
+    document.getElementById('btn-confirm-excluir').innerHTML =
+      '<span class="material-icons">delete_forever</span> Excluir';
+    document.getElementById('confirm-overlay').classList.add('aberto');
+  }
+
+  function fecharConfirmacao() {
+    document.getElementById('confirm-overlay').classList.remove('aberto');
+    _excluindoEmail = null;
+  }
+
+  function confirmarExclusao() {
+    if (!_excluindoEmail) return;
+    var emailParaExcluir = _excluindoEmail; // captura antes de fechar o modal
+    var btnOk = document.getElementById('btn-confirm-excluir');
+    btnOk.disabled   = true;
+    btnOk.innerHTML  = '<span class="material-icons">hourglass_top</span> Excluindo...';
+
+    google.script.run
+      .withSuccessHandler(function() {
+        fecharConfirmacao();
+        _acessoCarregado = false;
+        carregarAcesso(true);
+        mostrarToast('Usuário excluído com sucesso.', 'sucesso');
+      })
+      .withFailureHandler(function(err) {
+        btnOk.disabled  = false;
+        btnOk.innerHTML = '<span class="material-icons">delete_forever</span> Excluir';
+        mostrarToast((err.message || 'Erro ao excluir usuário.'), 'erro', 6000);
+      })
+      .excluirCredencial(emailParaExcluir);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  PARTE 3 — AVALIAÇÕES (Currículo e Entrevista)
+  // ══════════════════════════════════════════════════════════════════
+  var _avalDados    = { curriculo: [], entrevista: [] };
+  var _avalFiltrado = { curriculo: [], entrevista: [] };
+  var _avalLoaded   = { curriculo: false, entrevista: false };
+  var _avalTipo     = null;   // tipo do modal aberto atualmente
+  var _avalCand     = null;   // candidato do modal aberto
+
+  // ── Carrega lista do servidor ────────────────────────────────────
+  function carregarAval(tipo, forcar) {
+    if (!forcar && _avalLoaded[tipo]) return;
+    var tbody = document.getElementById('aval-tbody-' + tipo);
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">'
+      + '<div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>'
+      + 'Carregando...</td></tr>';
+    document.getElementById('aval-empty-' + tipo).style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        _avalDados[tipo]  = lista;
+        _avalLoaded[tipo] = true;
+        _popularFiltroAval(tipo);
+        filtrarAval(tipo);
+      })
+      .withFailureHandler(function(err) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:#c62828;font-size:13px;">'
+          + '<span class="material-icons" style="font-size:28px;display:block;margin-bottom:8px;color:#ef9a9a;">error_outline</span>'
+          + _esc(err.message || 'Erro ao carregar.')
+          + '<br><br><button class="btn-icon" onclick="carregarAval(\'' + tipo + '\',true)">'
+          + '<span class="material-icons">refresh</span> Tentar novamente</button></td></tr>';
+      })
+      .listarParaAvaliar(tipo);
+  }
+
+  function _popularFiltroAval(tipo) {
+    var sel = document.getElementById('aval-filtro-unidade-' + tipo);
+    var unids = {};
+    _avalDados[tipo].forEach(function(c) { if (c.unidade) unids[c.unidade] = true; });
+    var html = '<option value="">Todas as unidades</option>';
+    Object.keys(unids).sort().forEach(function(u) { html += '<option>' + _esc(u) + '</option>'; });
+    sel.innerHTML = html;
+  }
+
+  // ── Filtragem ────────────────────────────────────────────────────
+  function filtrarAval(tipo) {
+    var busca  = document.getElementById('aval-busca-' + tipo).value.toLowerCase().trim();
+    var unid   = document.getElementById('aval-filtro-unidade-' + tipo).value;
+    var stAval = document.getElementById('aval-filtro-status-' + tipo).value;
+
+    _avalFiltrado[tipo] = _avalDados[tipo].filter(function(c) {
+      if (busca && !(c.nome.toLowerCase().includes(busca) || c.matricula.toLowerCase().includes(busca))) return false;
+      if (unid   && c.unidade !== unid)     return false;
+      if (stAval && c.avalStatus !== stAval) return false;
+      return true;
+    });
+
+    renderTabelaAval(tipo);
+    var total = _avalFiltrado[tipo].length;
+    document.getElementById('aval-count-' + tipo).textContent =
+      total + ' de ' + _avalDados[tipo].length + ' candidato' + (total !== 1 ? 's' : '');
+  }
+
+  // ── Renderiza tabela ─────────────────────────────────────────────
+  function renderTabelaAval(tipo) {
+    var tbody = document.getElementById('aval-tbody-' + tipo);
+    var empty = document.getElementById('aval-empty-' + tipo);
+    var lista = _avalFiltrado[tipo];
+
+    if (lista.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    var stCls = { 'Não avaliado':'nao', 'Rascunho':'rascunho', 'Concluída':'concluida' };
+
+    tbody.innerHTML = lista.map(function(c) {
+      var iniciais = c.nome.split(' ').filter(Boolean).map(function(p){return p[0];}).slice(0,2).join('').toUpperCase() || '?';
+      var sc = stCls[c.avalStatus] || 'nao';
+      var notaHtml = c.notaExibir
+        ? '<div class="nota-mini"><span class="nm-val">' + c.notaExibir.toFixed ? c.notaExibir.toFixed(1) : c.notaExibir + '</span><span class="nm-star">★</span></div>'
+        : '<span class="nm-na">—</span>';
+      var progN = Math.min(3, Math.max(0, c.avalConcluidas || 0));
+      var progHtml = '<div class="eval-prog">'
+        + [1,2,3].map(function(i){ return '<div class="eval-prog-dot' + (i <= progN ? ' feito' : '') + '"></div>'; }).join('')
+        + '<span class="eval-prog-num">' + progN + '/3</span></div>';
+      var btnLabel = c.avalStatus === 'Não avaliado' ? 'Avaliar' : 'Editar';
+      var emailEsc = _esc(c.email).replace(/'/g,"\\'");
+      var cvLinkAval = c.sougovUrl
+        ? '<a href="' + _esc(c.sougovUrl) + '" target="_blank" rel="noopener"'
+          + ' onclick="event.stopPropagation()"'
+          + ' style="display:inline-flex;align-items:center;gap:2px;font-size:10px;'
+          + 'color:var(--azul-med);font-weight:600;text-decoration:none;margin-top:2px;">'
+          + '<span class="material-icons" style="font-size:11px;">open_in_new</span>Currículo SouGov</a>'
+        : '';
+      return '<tr onclick="abrirModalAval(\'' + tipo + '\',\'' + emailEsc + '\')">'
+        + '<td><div class="cand-nome-wrap">'
+        + '<div class="cand-avatar">' + iniciais + '</div>'
+        + '<div><div class="cand-nome">' + _esc(c.nome) + '</div>'
+        + '<div class="cand-cargo">' + _esc(c.cargo) + '</div>'
+        + cvLinkAval + '</div></div></td>'
+        + '<td>' + _esc(c.matricula) + '</td>'
+        + '<td>' + _esc(c.unidade)   + '</td>'
+        + '<td>' + notaHtml          + '</td>'
+        + '<td><span class="badge-aval ' + sc + '">' + _esc(c.avalStatus) + '</span></td>'
+        + '<td>' + progHtml + '</td>'
+        + '<td style="text-align:right;">'
+        + '<button class="btn-icon" style="font-size:11px;padding:5px 10px;" onclick="event.stopPropagation();abrirModalAval(\'' + tipo + '\',\'' + emailEsc + '\')">'
+        + btnLabel + '</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  MODAL DE AVALIAÇÃO
+  // ══════════════════════════════════════════════════════════════════
+  function abrirModalAval(tipo, email) {
+    var cand = (_avalDados[tipo] || []).filter(function(c){ return c.email.toLowerCase() === email.toLowerCase(); })[0];
+    if (!cand) { mostrarToast('Candidato não encontrado.', 'erro'); return; }
+
+    _avalTipo = tipo;
+    _avalCand = cand;
+
+    // Header
+    var tipoLabel = tipo === 'curriculo' ? 'Avaliação de Currículo' : 'Avaliação de Entrevista';
+    document.getElementById('aval-m-tipo').textContent = tipoLabel;
+    document.getElementById('aval-m-nome').textContent = cand.nome;
+    document.getElementById('aval-m-sub').textContent  = cand.cargo + ' • ' + cand.unidade;
+    // Link do currículo SouGov
+    var cvEl = document.getElementById('aval-m-cv');
+    if (cvEl) {
+      cvEl.innerHTML = cand.sougovUrl
+        ? '<a href="' + _esc(cand.sougovUrl) + '" target="_blank" rel="noopener">'
+          + '<span class="material-icons">open_in_new</span>Ver Currículo SouGov</a>'
+        : '';
+    }
+
+    // Render body
+    var aval = cand.avaliacao || {};
+    var dt   = cand.dataHora ? String(cand.dataHora).substring(0, 10) : '—';
+    var meta = '<div class="aval-cand-meta">'
+      + '<div><span>Matrícula</span>: <strong>' + _esc(cand.matricula) + '</strong></div>'
+      + '<div><span>Inscrito em</span>: <strong>' + dt + '</strong></div>'
+      + '</div>';
+
+    var body = meta;
+
+    if (tipo === 'curriculo') {
+      body += _htmlSecaoEstrela('notaGeral', 'Nota Geral', aval.notaGeral || 0, true)
+        + _htmlTextarea('aval-obsPositivas', 'thumb_up', 'Pontos Positivos', aval.obsPositivas || '', 'Descreva os pontos fortes do currículo...')
+        + _htmlTextarea('aval-obsNegativas', 'thumb_down', 'Pontos Negativos', aval.obsNegativas || '', 'Descreva os pontos a melhorar...')
+        + _htmlTextarea('aval-obsLivres', 'notes', 'Observações Livres', aval.obsLivres || '', 'Comentários adicionais...');
+    } else {
+      var criterios = [
+        ['notaComunicacao',   'Comunicação'],
+        ['notaIntEmocional',  'Inteligência Emocional'],
+        ['notaPostura',       'Postura'],
+        ['notaLingCorporal',  'Linguagem Corporal']
+      ];
+      var criteriosHtml = '<div class="criterios-wrap">'
+        + criterios.map(function(cr) {
+            return _htmlSecaoEstrela(cr[0], cr[1], aval[cr[0]] || 0, false);
+          }).join('')
+        + '</div>'
+        + '<div class="media-badge"><span class="mb-val" id="media-entrevista">—</span>'
+        + '<span class="mb-star">★</span><span class="mb-lbl">média</span></div>';
+
+      body += '<div class="aval-sec"><div class="aval-sec-lbl"><span class="material-icons">grading</span>Critérios de Avaliação</div>'
+        + criteriosHtml + '</div>'
+        + _htmlTagInput('aval-unidades', 'Unidade(s) Indicada(s)', aval.unidadeIndicada || '')
+        + _htmlTextarea('aval-obsLivres', 'notes', 'Observações Gerais', aval.obsLivres || '', 'Comentários adicionais...');
+    }
+
+    document.getElementById('aval-modal-body').innerHTML = body;
+    document.getElementById('btn-aval-rascunho').disabled = false;
+    document.getElementById('btn-aval-concluir').disabled = false;
+
+    // Inicializar estrelas e widgets interativos
+    if (tipo === 'curriculo') {
+      _initStars('stars-notaGeral', aval.notaGeral || 0);
+    } else {
+      _initStars('stars-notaComunicacao',  aval.notaComunicacao  || 0);
+      _initStars('stars-notaIntEmocional', aval.notaIntEmocional || 0);
+      _initStars('stars-notaPostura',      aval.notaPostura      || 0);
+      _initStars('stars-notaLingCorporal', aval.notaLingCorporal || 0);
+      _calcularMediaEntrevista();
+      _initTagInput('aval-unidades');
+    }
+
+    document.getElementById('aval-overlay').classList.add('aberto');
+  }
+
+  function fecharModalAval() {
+    document.getElementById('aval-overlay').classList.remove('aberto');
+    _avalTipo = null;
+    _avalCand = null;
+  }
+
+  // ── Helpers de HTML do modal ─────────────────────────────────────
+  function _htmlSecaoEstrela(campo, label, valor, secaoIndividual) {
+    var starsHtml = '<div class="stars interativo" id="stars-' + campo + '" data-val="' + valor + '">'
+      + [1,2,3,4,5].map(function(v){ return '<span class="s' + (v <= valor ? ' on' : '') + '" data-v="' + v + '">★</span>'; }).join('')
+      + '</div>'
+      + '<span class="star-val" id="stars-' + campo + '-val">' + (valor > 0 ? valor + '.0' : '—') + '</span>';
+
+    if (secaoIndividual) {
+      return '<div class="aval-sec"><div class="aval-sec-lbl"><span class="material-icons">star</span>' + label + '</div>'
+        + '<div class="star-row">' + starsHtml + '</div></div>';
+    }
+    return '<div class="star-row"><span class="sr-label">' + label + '</span>' + starsHtml + '</div>';
+  }
+
+  function _htmlTextarea(id, icon, label, valor, placeholder) {
+    return '<div class="aval-sec"><div class="aval-sec-lbl"><span class="material-icons">' + icon + '</span>' + label + '</div>'
+      + '<textarea class="aval-textarea" id="' + id + '" placeholder="' + placeholder + '">' + _esc(valor) + '</textarea></div>';
+  }
+
+  // ── Widget de estrelas ───────────────────────────────────────────
+  function _initStars(containerId, valor) {
+    var cont = document.getElementById(containerId);
+    if (!cont) return;
+    cont.dataset.val = valor || 0;
+    var stars = cont.querySelectorAll('.s');
+
+    function updateVisual(hoverVal, isHover) {
+      stars.forEach(function(s) {
+        var sv = parseInt(s.dataset.v);
+        s.classList.toggle('on',    !isHover && sv <= parseInt(cont.dataset.val || 0));
+        s.classList.toggle('hover',  isHover && sv <= hoverVal);
+      });
+    }
+
+    stars.forEach(function(star) {
+      var v = parseInt(star.dataset.v);
+      star.addEventListener('mouseover', function(){ updateVisual(v, true); });
+      star.addEventListener('click', function() {
+        cont.dataset.val = v;
+        updateVisual(v, false);
+        var valEl = document.getElementById(containerId + '-val');
+        if (valEl) valEl.textContent = v + '.0';
+        if (_avalTipo === 'entrevista') _calcularMediaEntrevista();
+      });
+    });
+    cont.addEventListener('mouseleave', function(){ updateVisual(0, false); });
+    updateVisual(0, false); // reaplica estado inicial
+  }
+
+  function _calcularMediaEntrevista() {
+    var campos = ['notaComunicacao', 'notaIntEmocional', 'notaPostura', 'notaLingCorporal'];
+    var vals = campos.map(function(c) {
+      var el = document.getElementById('stars-' + c);
+      return el ? parseInt(el.dataset.val || 0) : 0;
+    }).filter(function(v){ return v > 0; });
+    var el = document.getElementById('media-entrevista');
+    if (el) el.textContent = vals.length > 0
+      ? (vals.reduce(function(a,b){return a+b;},0) / vals.length).toFixed(1)
+      : '—';
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  TAG-CHIP INPUT — Unidades Indicadas
+  // ══════════════════════════════════════════════════════════════════
+  var _tagDropEl = null;   // elemento do dropdown compartilhado (fixo no body)
+
+  function _htmlTagInput(id, label, valorStr) {
+    var vals = valorStr ? valorStr.split(';').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+    var chipsHtml = vals.map(function(v) {
+      return '<span class="tag-chip" data-val="' + _esc(v) + '">' + _esc(v)
+        + '<button type="button" class="rm" title="Remover">×</button></span>';
+    }).join('');
+    return '<div class="aval-sec"><div class="aval-sec-lbl">'
+      + '<span class="material-icons">location_city</span>' + label + '</div>'
+      + '<div class="tag-inp-wrap" id="' + id + '">'
+      + chipsHtml
+      + '<input class="tag-inp-input" id="' + id + '-inp" '
+      + 'placeholder="Digitar ou buscar unidade..." autocomplete="off">'
+      + '</div></div>';
+  }
+
+  function _initTagInput(containerId) {
+    var cont = document.getElementById(containerId);
+    if (!cont) return;
+
+    // Bind botões de remoção nos chips existentes
+    cont.querySelectorAll('.tag-chip .rm').forEach(function(btn) {
+      btn.addEventListener('click', function() { btn.parentNode.remove(); });
+    });
+
+    // Cria dropdown fixo no body (reutilizável)
+    if (!_tagDropEl) {
+      _tagDropEl = document.createElement('div');
+      _tagDropEl.className = 'tag-drop';
+      _tagDropEl.style.display = 'none';
+      document.body.appendChild(_tagDropEl);
+    }
+    var drop = _tagDropEl;
+
+    var inp = document.getElementById(containerId + '-inp');
+    if (!inp) return;
+
+    // Clique no wrap foca no input
+    cont.addEventListener('click', function(e) {
+      if (!e.target.closest('.tag-chip')) inp.focus();
+    });
+
+    inp.addEventListener('input', function() {
+      var val = inp.value.trim().toLowerCase();
+      if (!val || !_uorgsList.length) { drop.style.display = 'none'; return; }
+      var existing = _getTagValues(containerId).map(function(v){ return v.toLowerCase(); });
+      var matches  = _uorgsList.filter(function(u) {
+        return u.toLowerCase().includes(val) && !existing.includes(u.toLowerCase());
+      }).slice(0, 10);
+      if (!matches.length) { drop.style.display = 'none'; return; }
+
+      drop.innerHTML = matches.map(function(u) {
+        return '<div class="tag-drop-item">' + _esc(u) + '</div>';
+      }).join('');
+      drop.querySelectorAll('.tag-drop-item').forEach(function(item) {
+        item.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          _tagAddChip(containerId, item.textContent);
+          inp.value = '';
+          drop.style.display = 'none';
+          inp.focus();
+        });
+      });
+
+      var rect = inp.getBoundingClientRect();
+      drop.style.left  = rect.left + 'px';
+      drop.style.top   = (rect.bottom + 4) + 'px';
+      drop.style.width = Math.max(280, rect.width) + 'px';
+      drop.style.display = 'block';
+    });
+
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        var val = inp.value.trim().replace(/,$/, '');
+        if (val) { _tagAddChip(containerId, val); inp.value = ''; }
+        drop.style.display = 'none';
+      } else if (e.key === 'Escape') {
+        drop.style.display = 'none';
+      }
+    });
+
+    // Pequeno delay para permitir que o mousedown no item dispare antes do blur
+    inp.addEventListener('blur', function() {
+      setTimeout(function() { drop.style.display = 'none'; }, 160);
+    });
+  }
+
+  function _tagAddChip(containerId, value) {
+    value = value.trim();
+    if (!value) return;
+    var existing = _getTagValues(containerId).map(function(v){ return v.toLowerCase(); });
+    if (existing.includes(value.toLowerCase())) return;
+    var cont = document.getElementById(containerId);
+    var inp  = document.getElementById(containerId + '-inp');
+    if (!cont || !inp) return;
+    var chip = document.createElement('span');
+    chip.className  = 'tag-chip';
+    chip.dataset.val = value;
+    chip.innerHTML  = _esc(value) + '<button type="button" class="rm" title="Remover">×</button>';
+    chip.querySelector('.rm').addEventListener('click', function() { chip.remove(); });
+    cont.insertBefore(chip, inp);
+  }
+
+  function _getTagValues(containerId) {
+    var cont = document.getElementById(containerId);
+    if (!cont) return [];
+    return Array.from(cont.querySelectorAll('.tag-chip[data-val]')).map(function(el){ return el.dataset.val; });
+  }
+
+  // ── Salvar avaliação ─────────────────────────────────────────────
+  function salvarAval(status) {
+    if (!_avalTipo || !_avalCand) return;
+
+    // Validação para "Concluir"
+    if (status === 'Concluída') {
+      if (_avalTipo === 'curriculo') {
+        var ng = parseInt((document.getElementById('stars-notaGeral') || {}).dataset && document.getElementById('stars-notaGeral').dataset.val || 0);
+        if (!ng) { mostrarToast('Atribua uma Nota Geral para concluir a avaliação.', 'aviso'); return; }
+      } else {
+        var campos = ['notaComunicacao','notaIntEmocional','notaPostura','notaLingCorporal'];
+        var incompleto = campos.some(function(c){
+          var el = document.getElementById('stars-' + c);
+          return !el || parseInt(el.dataset.val || 0) === 0;
+        });
+        if (incompleto) { mostrarToast('Preencha todos os 4 critérios para concluir.', 'aviso'); return; }
+      }
+    }
+
+    var dados = {
+      emailCandidato:   _avalCand.email,
+      nomeCandidato:    _avalCand.nome,
+      unidadeCandidato: _avalCand.unidade,
+      tipo:             _avalTipo,
+      status:           status
+    };
+
+    if (_avalTipo === 'curriculo') {
+      var el = document.getElementById('stars-notaGeral');
+      dados.notaGeral     = el ? parseInt(el.dataset.val || 0) || '' : '';
+      dados.obsPositivas  = (document.getElementById('aval-obsPositivas')  || {}).value || '';
+      dados.obsNegativas  = (document.getElementById('aval-obsNegativas')  || {}).value || '';
+      dados.obsLivres     = (document.getElementById('aval-obsLivres')     || {}).value || '';
+    } else {
+      var getV = function(id){ var e = document.getElementById('stars-' + id); return e ? parseInt(e.dataset.val||0)||'' : ''; };
+      dados.notaComunicacao   = getV('notaComunicacao');
+      dados.notaIntEmocional  = getV('notaIntEmocional');
+      dados.notaPostura       = getV('notaPostura');
+      dados.notaLingCorporal  = getV('notaLingCorporal');
+      dados.unidadeIndicada   = _getTagValues('aval-unidades').join('; ');
+      dados.obsLivres         = (document.getElementById('aval-obsLivres')       || {}).value || '';
+    }
+
+    var btnR = document.getElementById('btn-aval-rascunho');
+    var btnC = document.getElementById('btn-aval-concluir');
+    btnR.disabled = btnC.disabled = true;
+    btnR.textContent = 'Salvando...';
+
+    google.script.run
+      .withSuccessHandler(function() {
+        btnR.disabled = btnC.disabled = false;
+        btnR.textContent = 'Salvar Rascunho';
+
+        // Atualiza cache local
+        _avalCand.avalStatus = status;
+        if (_avalTipo === 'curriculo') {
+          _avalCand.notaExibir = dados.notaGeral ? Number(dados.notaGeral) : null;
+        } else {
+          var ns = [dados.notaComunicacao, dados.notaIntEmocional, dados.notaPostura, dados.notaLingCorporal]
+            .filter(function(n){ return n > 0; });
+          _avalCand.notaExibir = ns.length > 0 ? +(ns.reduce(function(a,b){return a+b;},0)/ns.length).toFixed(1) : null;
+        }
+        _avalCand.avaliacao = Object.assign({}, _avalCand.avaliacao || {}, dados);
+
+        renderTabelaAval(_avalTipo);
+        var msgStatus = status === 'Concluída' ? 'Avaliação concluída!' : 'Rascunho salvo.';
+        mostrarToast(msgStatus, 'sucesso');
+        if (status === 'Concluída') fecharModalAval();
+      })
+      .withFailureHandler(function(err) {
+        btnR.disabled = btnC.disabled = false;
+        btnR.textContent = 'Salvar Rascunho';
+        mostrarToast(err.message || 'Erro ao salvar avaliação.', 'erro', 6000);
+      })
+      .salvarAvaliacao(dados);
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  RESUMO GERAL — Parte 4
+  // ══════════════════════════════════════════════════════════════════
+  var _resumoDados    = [];
+  var _resumoFiltrado = [];
+  var _resumoCarregado = false;
+
+  function carregarResumo(forcar) {
+    if (!forcar && _resumoCarregado) return;
+    var tbody = document.getElementById('resumo-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#9aabb8;font-size:13px;">'
+      + '<div class="spinner" style="margin:0 auto 12px;width:28px;height:28px;border-width:3px;"></div>'
+      + 'Carregando...</td></tr>';
+    document.getElementById('resumo-empty').style.display = 'none';
+    document.getElementById('resumo-cards').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(lista) {
+        _resumoDados    = lista;
+        _resumoCarregado = true;
+        _popularFiltroResumo();
+        filtrarResumo();
+        _renderCardsResumo();
+        document.getElementById('resumo-cards').style.display = 'flex';
+      })
+      .withFailureHandler(function(err) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#c62828;font-size:13px;">'
+          + '<span class="material-icons" style="font-size:28px;display:block;margin-bottom:8px;color:#ef9a9a;">error_outline</span>'
+          + _esc(err.message || 'Erro ao carregar.')
+          + '<br><br><button class="btn-icon" onclick="carregarResumo(true)">'
+          + '<span class="material-icons">refresh</span> Tentar novamente</button></td></tr>';
+      })
+      .listarResumo();
+  }
+
+  function _popularFiltroResumo() {
+    var sel = document.getElementById('resumo-filtro-unidade');
+    var unids = {};
+    _resumoDados.forEach(function(c) { if (c.unidade) unids[c.unidade] = true; });
+    var html = '<option value="">Todas as unidades</option>';
+    Object.keys(unids).sort().forEach(function(u) { html += '<option>' + _esc(u) + '</option>'; });
+    sel.innerHTML = html;
+  }
+
+  function _statusResumo(c) {
+    var cur3 = c.curriculo.concluidas >= 3;
+    var ent3 = c.entrevista.concluidas >= 3;
+    if (cur3 && ent3) return 'Completo';
+    if (c.curriculo.concluidas > 0 || c.entrevista.concluidas > 0) return 'Em andamento';
+    return 'Aguardando';
+  }
+
+  function filtrarResumo() {
+    var busca  = document.getElementById('resumo-busca').value.toLowerCase().trim();
+    var unid   = document.getElementById('resumo-filtro-unidade').value;
+    var st     = document.getElementById('resumo-filtro-status').value;
+
+    _resumoFiltrado = _resumoDados.filter(function(c) {
+      if (busca && !(c.nome.toLowerCase().includes(busca) || c.matricula.toLowerCase().includes(busca))) return false;
+      if (unid && c.unidade !== unid) return false;
+      if (st   && _statusResumo(c) !== st) return false;
+      return true;
+    });
+
+    renderTabelaResumo();
+    var total = _resumoFiltrado.length;
+    document.getElementById('resumo-count').textContent =
+      total + ' de ' + _resumoDados.length + ' candidato' + (total !== 1 ? 's' : '');
+  }
+
+  function _renderCardsResumo() {
+    var total    = _resumoDados.length;
+    var cur3     = _resumoDados.filter(function(c){ return c.curriculo.concluidas >= 3; }).length;
+    var ent3     = _resumoDados.filter(function(c){ return c.entrevista.concluidas >= 3; }).length;
+    var completo = _resumoDados.filter(function(c){ return _statusResumo(c) === 'Completo'; }).length;
+    document.getElementById('rc-total').textContent    = total;
+    document.getElementById('rc-cur3').textContent     = cur3;
+    document.getElementById('rc-ent3').textContent     = ent3;
+    document.getElementById('rc-completo').textContent = completo;
+  }
+
+  function renderTabelaResumo() {
+    var tbody = document.getElementById('resumo-tbody');
+    var empty = document.getElementById('resumo-empty');
+    var lista = _resumoFiltrado;
+    if (lista.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    var stCls = { 'Completo':'completo', 'Em andamento':'andamento', 'Aguardando':'aguardando' };
+
+    tbody.innerHTML = lista.map(function(c) {
+      var emailEsc = _esc(c.email).replace(/'/g, "\\'");
+      var iniciais = c.nome.split(' ').filter(Boolean).map(function(p){return p[0];}).slice(0,2).join('').toUpperCase() || '?';
+      var st = _statusResumo(c);
+      var sc = stCls[st] || 'aguardando';
+
+      // Currículo: progress + avg
+      var curHtml = _progResumoCel(c.curriculo.concluidas, c.curriculo.mediaNota);
+      // Entrevista: progress + avg
+      var entHtml = _progResumoCel(c.entrevista.concluidas, c.entrevista.mediaGeral);
+
+      // Unidades indicadas (top 2 + contador)
+      var unis = c.entrevista.unidadesIndicadas || [];
+      var unisHtml = unis.length === 0 ? '<span class="nm-na">—</span>'
+        : unis.slice(0, 2).map(function(u) {
+            return '<span class="uni-chip"><span class="vc">' + u.votos + '</span>' + _esc(u.unidade) + '</span>';
+          }).join('')
+          + (unis.length > 2 ? '<span style="font-size:11px;color:#9aabb8;margin-left:4px;">+' + (unis.length - 2) + '</span>' : '');
+
+      var cvLinkResumo = c.sougovUrl
+        ? '<a href="' + _esc(c.sougovUrl) + '" target="_blank" rel="noopener"'
+          + ' onclick="event.stopPropagation()"'
+          + ' style="display:inline-flex;align-items:center;gap:2px;font-size:10px;'
+          + 'color:var(--azul-med);font-weight:600;text-decoration:none;margin-top:2px;">'
+          + '<span class="material-icons" style="font-size:11px;">open_in_new</span>Currículo SouGov</a>'
+        : '';
+      return '<tr onclick="abrirDetalhe(\'' + emailEsc + '\')" style="cursor:pointer;">'
+        + '<td><div class="cand-nome-wrap">'
+        + '<div class="cand-avatar">' + iniciais + '</div>'
+        + '<div><div class="cand-nome">' + _esc(c.nome) + '</div>'
+        + '<div class="cand-cargo">' + _esc(c.cargo) + '</div>'
+        + cvLinkResumo + '</div></div></td>'
+        + '<td>' + _esc(c.matricula) + '</td>'
+        + '<td>' + _esc(c.unidade)   + '</td>'
+        + '<td>' + curHtml + '</td>'
+        + '<td>' + entHtml + '</td>'
+        + '<td style="max-width:180px;">' + unisHtml + '</td>'
+        + '<td><span class="badge-resumo ' + sc + '">' + st + '</span></td>'
+        + '<td style="text-align:right;">'
+        + '<button class="btn-icon" style="font-size:11px;padding:5px 10px;" onclick="event.stopPropagation();abrirDetalhe(\'' + emailEsc + '\')">'
+        + 'Detalhes</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function _progResumoCel(concluidas, media) {
+    var n = Math.min(3, Math.max(0, concluidas || 0));
+    var dots = [1,2,3].map(function(i){
+      return '<div class="eval-prog-dot' + (i <= n ? ' feito' : '') + '"></div>';
+    }).join('');
+    var nota = media ? ('<span style="font-weight:700;color:#1a2332;margin-left:6px;">' + media + '</span>'
+      + '<span style="color:#FFC400;font-size:13px;">★</span>') : '';
+    return '<div class="eval-prog">' + dots + '<span class="eval-prog-num">' + n + '/3</span>' + nota + '</div>';
+  }
+
+  // ── Modal de detalhe ─────────────────────────────────────────────
+  function abrirDetalhe(email) {
+    var c = _resumoDados.filter(function(x){ return x.email.toLowerCase() === email.toLowerCase(); })[0];
+    if (!c) return;
+
+    document.getElementById('det-nome').textContent = c.nome;
+    document.getElementById('det-sub').textContent  = c.cargo + ' • ' + c.unidade + ' • Matrícula: ' + c.matricula;
+    var cvEl = document.getElementById('det-cv');
+    cvEl.innerHTML = c.sougovUrl
+      ? '<a href="' + _esc(c.sougovUrl) + '" target="_blank" rel="noopener">'
+        + '<span class="material-icons">open_in_new</span>Ver Currículo SouGov</a>'
+      : '';
+
+    var body = '';
+
+    // ── Seção Currículo ──
+    var cur = c.curriculo;
+    body += '<div class="det-sec"><div class="det-sec-title">'
+      + '<span class="material-icons">description</span>Avaliação de Currículo'
+      + ' <span class="eval-prog" style="margin-left:auto;">'
+      + [1,2,3].map(function(i){ return '<div class="eval-prog-dot' + (i <= cur.concluidas ? ' feito' : '') + '"></div>'; }).join('')
+      + '<span class="eval-prog-num">' + cur.concluidas + '/3 concluídas</span></span></div>';
+
+    if (cur.mediaNota) {
+      body += '<div class="det-media-row"><div class="det-media-box">'
+        + '<div class="dmb-val">' + cur.mediaNota + '<span class="dmb-star">★</span></div>'
+        + '<div class="dmb-lbl">Média Geral</div></div></div>';
+    }
+
+    if (cur.avaliacoes && cur.avaliacoes.length > 0) {
+      body += '<table class="det-table"><thead><tr>'
+        + '<th>Avaliador</th><th>Nota</th><th>Status</th><th>Data</th><th>Observações</th>'
+        + '</tr></thead><tbody>'
+        + cur.avaliacoes.map(function(a) {
+            var notaHtml = a.nota > 0
+              ? '<span class="det-nota">' + a.nota + ' <span style="color:#FFC400">★</span></span>'
+              : '<span class="det-nota-na">—</span>';
+            var obs = [a.obsPositivas ? '+ ' + a.obsPositivas : '', a.obsNegativas ? '- ' + a.obsNegativas : '', a.obsLivres || '']
+              .filter(Boolean).join('\n');
+            return '<tr><td>' + _esc(a.nomeAvaliador) + '</td>'
+              + '<td>' + notaHtml + '</td>'
+              + '<td><span class="badge-aval ' + (a.status.toLowerCase() === 'concluída' ? 'concluida' : 'rascunho') + '">' + _esc(a.status) + '</span></td>'
+              + '<td style="white-space:nowrap;font-size:11px;color:#7a8a9a;">' + _esc(a.dataHora) + '</td>'
+              + '<td><div class="det-obs">' + _esc(obs).replace(/\n/g,'<br>') + '</div></td></tr>';
+          }).join('')
+        + '</tbody></table>';
+    } else {
+      body += '<p style="font-size:13px;color:#9aabb8;padding:8px 0;">Nenhuma avaliação de currículo registrada.</p>';
+    }
+    body += '</div>';
+
+    // ── Seção Entrevista ──
+    var ent = c.entrevista;
+    body += '<div class="det-sec"><div class="det-sec-title">'
+      + '<span class="material-icons">record_voice_over</span>Avaliação de Entrevista'
+      + ' <span class="eval-prog" style="margin-left:auto;">'
+      + [1,2,3].map(function(i){ return '<div class="eval-prog-dot' + (i <= ent.concluidas ? ' feito' : '') + '"></div>'; }).join('')
+      + '<span class="eval-prog-num">' + ent.concluidas + '/3 concluídas</span></span></div>';
+
+    if (ent.mediaGeral) {
+      var criterios = [
+        { lbl: 'Geral',       val: ent.mediaGeral        },
+        { lbl: 'Comunicação', val: ent.mediaComunicacao   },
+        { lbl: 'Int. Emocional', val: ent.mediaIntEmocional },
+        { lbl: 'Postura',     val: ent.mediaPostura       },
+        { lbl: 'Ling. Corporal', val: ent.mediaLingCorporal }
+      ];
+      body += '<div class="det-media-row">'
+        + criterios.map(function(cr) {
+            return '<div class="det-media-box">'
+              + '<div class="dmb-val">' + (cr.val || '—') + (cr.val ? '<span class="dmb-star">★</span>' : '') + '</div>'
+              + '<div class="dmb-lbl">' + cr.lbl + '</div></div>';
+          }).join('')
+        + '</div>';
+    }
+
+    if (ent.avaliacoes && ent.avaliacoes.length > 0) {
+      body += '<table class="det-table"><thead><tr>'
+        + '<th>Avaliador</th><th>Com.</th><th>Int.Em.</th><th>Post.</th><th>L.Corp.</th><th>Status</th><th>Unidade Indicada</th>'
+        + '</tr></thead><tbody>'
+        + ent.avaliacoes.map(function(a) {
+            var nf = function(v){ return v > 0 ? '<span class="det-nota">' + v + '★</span>' : '<span class="det-nota-na">—</span>'; };
+            return '<tr><td>' + _esc(a.nomeAvaliador) + '</td>'
+              + '<td>' + nf(a.notaComunicacao)  + '</td>'
+              + '<td>' + nf(a.notaIntEmocional) + '</td>'
+              + '<td>' + nf(a.notaPostura)      + '</td>'
+              + '<td>' + nf(a.notaLingCorporal) + '</td>'
+              + '<td><span class="badge-aval ' + (a.status.toLowerCase() === 'concluída' ? 'concluida' : 'rascunho') + '">' + _esc(a.status) + '</span></td>'
+              + '<td style="font-size:12px;">' + _esc(a.unidadeIndicada || '—') + '</td></tr>';
+          }).join('')
+        + '</tbody></table>';
+    } else {
+      body += '<p style="font-size:13px;color:#9aabb8;padding:8px 0;">Nenhuma avaliação de entrevista registrada.</p>';
+    }
+    body += '</div>';
+
+    // ── Seção Unidades Indicadas ──
+    var unis = ent.unidadesIndicadas || [];
+    body += '<div class="det-sec"><div class="det-sec-title"><span class="material-icons">location_city</span>Unidades Indicadas (consensus)</div>';
+    if (unis.length > 0) {
+      body += '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;">'
+        + unis.map(function(u) {
+            return '<span class="uni-chip"><span class="vc">' + u.votos + '</span>' + _esc(u.unidade) + '</span>';
+          }).join('')
+        + '</div>';
+    } else {
+      body += '<p style="font-size:13px;color:#9aabb8;padding:4px 0;">Nenhuma unidade indicada ainda.</p>';
+    }
+    body += '</div>';
+
+    document.getElementById('detalhe-body').innerHTML = body;
+    document.getElementById('detalhe-overlay').classList.add('aberto');
+  }
+
+  function fecharDetalhe() {
+    document.getElementById('detalhe-overlay').classList.remove('aberto');
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  WIZARD — CRIAR NOVO RECRUTAMENTO
+  // ══════════════════════════════════════════════════════════════════
+  var _nrPasso = 1;
+  var _nrUorgs  = [];   // [{sigla, nome}]
+  var _nrUnidSelecionadas = {};   // sigla → true/false (UORGs selecionadas)
+  var _nrUnidCustom = [];         // strings adicionadas manualmente
+
+  // ── Navegação entre passos ───────────────────────────────────────
+  function nrNavegar(destino) {
+    // Só permite navegar para trás ou para o passo atual
+    if (destino > _nrPasso) return;
+    _nrPasso = destino;
+    _nrRenderStepper();
+    document.querySelectorAll('.nr-passo').forEach(function(el) { el.classList.remove('ativo'); });
+    var p = document.getElementById('nr-p' + destino);
+    if (p) { p.classList.add('ativo'); p.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    if (destino === 3) _nrRenderUnidChips();
+    if (destino === 5) _nrRenderRevisao();
+  }
+
+  function nrProximo() {
+    if (_nrPasso === 1) {
+      var nome = (document.getElementById('nr-nome').value || '').trim();
+      if (!nome) { mostrarToast('Informe o nome do recrutamento.', 'aviso'); document.getElementById('nr-nome').focus(); return; }
+    }
+    _nrPasso++;
+    _nrRenderStepper();
+    document.querySelectorAll('.nr-passo').forEach(function(el) { el.classList.remove('ativo'); });
+    var p = document.getElementById('nr-p' + _nrPasso);
+    if (p) { p.classList.add('ativo'); p.scrollIntoView({ behavior:'smooth', block:'start' }); }
+    if (_nrPasso === 3) _nrRenderUnidChips();
+    if (_nrPasso === 4) { nrContarLinhas('nr-grad-lista','nr-grad-count'); nrContarLinhas('nr-pos-lista','nr-pos-count'); }
+    if (_nrPasso === 5) _nrRenderRevisao();
+  }
+
+  function nrAnterior() {
+    if (_nrPasso <= 1) return;
+    _nrPasso--;
+    _nrRenderStepper();
+    document.querySelectorAll('.nr-passo').forEach(function(el) { el.classList.remove('ativo'); });
+    var p = document.getElementById('nr-p' + _nrPasso);
+    if (p) { p.classList.add('ativo'); p.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  }
+
+  function _nrRenderStepper() {
+    for (var i = 1; i <= 5; i++) {
+      var s = document.getElementById('nr-s' + i);
+      s.classList.remove('ativo','feito');
+      if (i < _nrPasso)      s.classList.add('feito');
+      else if (i === _nrPasso) s.classList.add('ativo');
+      var line = document.getElementById('nr-l' + i);
+      if (line) line.classList.toggle('feita', i < _nrPasso);
+    }
+  }
+
+  // ── Passo 2: UORGs ──────────────────────────────────────────────
+  function nrProcessarUorgs() {
+    var txt = (document.getElementById('nr-uorgs-bulk').value || '');
+    var linhas = txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+    var novas = [];
+    linhas.forEach(function(l) {
+      var partes = l.split(/[;\t]/).map(function(s){ return s.trim(); });
+      var sigla = partes[0] || '';
+      var nome  = partes[1] || '';
+      if (!sigla) return;
+      // Deduplica pela sigla (case-insensitive)
+      var dup = novas.some(function(u){ return u.sigla.toLowerCase() === sigla.toLowerCase(); })
+             || _nrUorgs.some(function(u){ return u.sigla.toLowerCase() === sigla.toLowerCase(); });
+      if (!dup) novas.push({ sigla: sigla, nome: nome });
+    });
+    _nrUorgs = _nrUorgs.concat(novas);
+    document.getElementById('nr-uorgs-bulk').value = '';
+    _nrRenderUorgsChips();
+    mostrarToast(novas.length + ' UORG' + (novas.length !== 1 ? 's' : '') + ' adicionada' + (novas.length !== 1 ? 's' : '') + '.', 'sucesso', 2500);
+  }
+
+  function nrAdicionarUorg() {
+    var sigla = (document.getElementById('nr-uorg-sigla').value || '').trim();
+    var nome  = (document.getElementById('nr-uorg-nome').value  || '').trim();
+    if (!sigla) { mostrarToast('Informe a sigla da UORG.', 'aviso'); document.getElementById('nr-uorg-sigla').focus(); return; }
+    var dup = _nrUorgs.some(function(u){ return u.sigla.toLowerCase() === sigla.toLowerCase(); });
+    if (dup) { mostrarToast('Esta UORG já está na lista.', 'aviso'); return; }
+    _nrUorgs.push({ sigla: sigla, nome: nome });
+    document.getElementById('nr-uorg-sigla').value = '';
+    document.getElementById('nr-uorg-nome').value  = '';
+    document.getElementById('nr-uorg-sigla').focus();
+    _nrRenderUorgsChips();
+  }
+
+  function nrLimparUorgs() {
+    if (_nrUorgs.length === 0) return;
+    _nrUorgs = [];
+    _nrUnidSelecionadas = {};
+    _nrRenderUorgsChips();
+    mostrarToast('Lista limpa.', 'aviso', 2000);
+  }
+
+  function nrOrdenarUorgs() {
+    _nrUorgs.sort(function(a,b){ return a.sigla.localeCompare(b.sigla, 'pt-BR'); });
+    _nrRenderUorgsChips();
+  }
+
+  function nrRemoverUorg(idx) {
+    var sigla = _nrUorgs[idx] && _nrUorgs[idx].sigla;
+    _nrUorgs.splice(idx, 1);
+    if (sigla) delete _nrUnidSelecionadas[sigla];
+    _nrRenderUorgsChips();
+  }
+
+  function _nrRenderUorgsChips() {
+    var wrap = document.getElementById('nr-uorgs-chips');
+    var count = document.getElementById('nr-uorgs-count');
+    var wrapEl = document.getElementById('nr-uorgs-lista-wrap');
+    count.textContent = _nrUorgs.length;
+    wrapEl.style.display = _nrUorgs.length > 0 ? 'block' : 'none';
+    wrap.innerHTML = _nrUorgs.map(function(u, i) {
+      var label = u.nome ? u.sigla + ' — ' + u.nome : u.sigla;
+      return '<span class="nr-chip uorg">' + _esc(label)
+        + '<button class="nr-rm" type="button" onclick="nrRemoverUorg(' + i + ')" title="Remover">×</button></span>';
+    }).join('');
+  }
+
+  // ── Passo 3: Unidades de Oportunidade ───────────────────────────
+  function _nrRenderUnidChips() {
+    var wrap  = document.getElementById('nr-unid-chips-uorgs');
+    var wrapEl = document.getElementById('nr-unid-from-uorgs');
+    if (_nrUorgs.length === 0) { wrapEl.style.display = 'none'; return; }
+    wrapEl.style.display = 'block';
+
+    // Inicializa seleção: novas UORGs entram como selecionadas
+    _nrUorgs.forEach(function(u) {
+      if (!(u.sigla in _nrUnidSelecionadas)) _nrUnidSelecionadas[u.sigla] = true;
+    });
+
+    wrap.innerHTML = _nrUorgs.map(function(u) {
+      var on = _nrUnidSelecionadas[u.sigla];
+      return '<span class="nr-chip ' + (on ? 'unid' : 'unid-off') + '" '
+        + 'onclick="nrToggleUnid(\'' + u.sigla.replace(/'/g,"\\'") + '\')" '
+        + 'title="' + _esc(u.nome || u.sigla) + '">'
+        + _esc(u.sigla) + '</span>';
+    }).join('');
+
+    _nrUpdateUnidEmpty();
+  }
+
+  function nrToggleUnid(sigla) {
+    _nrUnidSelecionadas[sigla] = !_nrUnidSelecionadas[sigla];
+    _nrRenderUnidChips();
+  }
+
+  function nrSelecionarTodasUnid(val) {
+    _nrUorgs.forEach(function(u){ _nrUnidSelecionadas[u.sigla] = val; });
+    _nrRenderUnidChips();
+  }
+
+  function nrAdicionarUnidCustom() {
+    var val = (document.getElementById('nr-unid-custom').value || '').trim();
+    if (!val) return;
+    var dup = _nrUnidCustom.some(function(v){ return v.toLowerCase() === val.toLowerCase(); })
+           || _nrUorgs.some(function(u){ return u.sigla.toLowerCase() === val.toLowerCase(); });
+    if (dup) { mostrarToast('Esta unidade já está na lista.', 'aviso'); return; }
+    _nrUnidCustom.push(val);
+    document.getElementById('nr-unid-custom').value = '';
+    _nrRenderCustomChips();
+    _nrUpdateUnidEmpty();
+  }
+
+  function nrRemoverUnidCustom(idx) {
+    _nrUnidCustom.splice(idx, 1);
+    _nrRenderCustomChips();
+    _nrUpdateUnidEmpty();
+  }
+
+  function _nrRenderCustomChips() {
+    var wrap  = document.getElementById('nr-unid-custom-chips');
+    var count = document.getElementById('nr-unid-custom-count');
+    var wrapEl = document.getElementById('nr-unid-custom-wrap');
+    count.textContent = _nrUnidCustom.length;
+    wrapEl.style.display = _nrUnidCustom.length > 0 ? 'block' : 'none';
+    wrap.innerHTML = _nrUnidCustom.map(function(v, i) {
+      return '<span class="nr-chip unid">' + _esc(v)
+        + '<button class="nr-rm" type="button" onclick="nrRemoverUnidCustom(' + i + ')" title="Remover">×</button></span>';
+    }).join('');
+  }
+
+  function _nrUpdateUnidEmpty() {
+    var temSelecionada = _nrUorgs.some(function(u){ return _nrUnidSelecionadas[u.sigla]; });
+    document.getElementById('nr-unid-empty').style.display =
+      (!temSelecionada && _nrUnidCustom.length === 0) ? 'block' : 'none';
+  }
+
+  function _nrGetUnidadesFinal() {
+    var lista = [];
+    _nrUorgs.forEach(function(u){ if (_nrUnidSelecionadas[u.sigla]) lista.push(u.sigla); });
+    _nrUnidCustom.forEach(function(v){ lista.push(v); });
+    return lista;
+  }
+
+  // ── Passo 4: Graduações — contador de linhas ─────────────────────
+  function nrContarLinhas(textareaId, countId) {
+    var txt = (document.getElementById(textareaId).value || '');
+    var n   = txt.split('\n').map(function(l){ return l.trim(); }).filter(Boolean).length;
+    document.getElementById(countId).textContent = n;
+  }
+
+  function _nrGetGraduacoes() {
+    return (document.getElementById('nr-grad-lista').value || '')
+      .split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  }
+  function _nrGetPosGraduacoes() {
+    return (document.getElementById('nr-pos-lista').value || '')
+      .split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  }
+
+  // ── Passo 5: Revisão ─────────────────────────────────────────────
+  function _nrRenderRevisao() {
+    var nome           = (document.getElementById('nr-nome').value || '').trim();
+    var emailsResposta = (document.getElementById('nr-emails-resposta').value || '').trim();
+    var grads     = _nrGetGraduacoes();
+    var poss      = _nrGetPosGraduacoes();
+    var unidades  = _nrGetUnidadesFinal();
+
+    var html = '';
+
+    // Identificação
+    html += '<div class="nr-rev-item">'
+      + '<div class="nr-rev-lbl">Recrutamento</div>'
+      + '<div class="nr-rev-val"><strong>' + _esc(nome) + '</strong>'
+      + (emailsResposta ? '<br><span style="font-size:11px;color:#7a8fa8;">📧 ' + _esc(emailsResposta) + '</span>' : '')
+      + '</div>'
+      + '<div class="nr-rev-edit" onclick="nrNavegar(1)">editar</div></div>';
+
+    // UORGs
+    html += '<div class="nr-rev-item">'
+      + '<div class="nr-rev-lbl">UORGs (<span style="color:var(--azul-med)">' + _nrUorgs.length + '</span>)</div>'
+      + '<div class="nr-rev-val">'
+      + (_nrUorgs.length === 0 ? '<span style="color:#9aabb8">Nenhuma — a aba será criada em branco</span>'
+          : _nrUorgs.slice(0,12).map(function(u){ return '<code>' + _esc(u.sigla) + '</code>'; }).join(' ')
+            + (_nrUorgs.length > 12 ? ' <span style="color:#9aabb8">+' + (_nrUorgs.length-12) + ' mais</span>' : ''))
+      + '</div>'
+      + '<div class="nr-rev-edit" onclick="nrNavegar(2)">editar</div></div>';
+
+    // Unidades de Oportunidade
+    html += '<div class="nr-rev-item">'
+      + '<div class="nr-rev-lbl">Unid. Oportunidade (<span style="color:var(--azul-med)">' + unidades.length + '</span>)</div>'
+      + '<div class="nr-rev-val">'
+      + (unidades.length === 0 ? '<span style="color:#9aabb8">Nenhuma selecionada</span>'
+          : unidades.slice(0,12).map(function(v){ return '<code>' + _esc(v) + '</code>'; }).join(' ')
+            + (unidades.length > 12 ? ' <span style="color:#9aabb8">+' + (unidades.length-12) + ' mais</span>' : ''))
+      + '</div>'
+      + '<div class="nr-rev-edit" onclick="nrNavegar(3)">editar</div></div>';
+
+    // Graduações
+    html += '<div class="nr-rev-item">'
+      + '<div class="nr-rev-lbl">Graduações (<span style="color:var(--azul-med)">' + grads.length + '</span>) / Pós (<span style="color:var(--azul-med)">' + poss.length + '</span>)</div>'
+      + '<div class="nr-rev-val">'
+      + (grads.length === 0 && poss.length === 0 ? '<span style="color:#9aabb8">Nenhuma — a aba será criada com exemplos padrão</span>'
+          : grads.slice(0,4).concat(poss.slice(0,4))
+              .map(function(v){ return '<code>' + _esc(v) + '</code>'; }).join(' ') + ' ...')
+      + '</div>'
+      + '<div class="nr-rev-edit" onclick="nrNavegar(4)">editar</div></div>';
+
+    document.getElementById('nr-revisao-body').innerHTML = html;
+  }
+
+  // ── Criação final ────────────────────────────────────────────────
+  function criarRecrutamento() {
+    var nome = (document.getElementById('nr-nome').value || '').trim();
+    if (!nome) { mostrarToast('Informe o nome do recrutamento (Passo 1).', 'aviso'); return; }
+
+    var btn = document.getElementById('novorec-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons">hourglass_top</span> Criando planilha...';
+
+    var dados = {
+      nome:               nome,
+      emailsResposta:     (document.getElementById('nr-emails-resposta').value || '').trim(),
+      uorgs:              _nrUorgs,
+      unidadesOportunidade: _nrGetUnidadesFinal(),
+      graduacoes:         _nrGetGraduacoes(),
+      posGraduacoes:      _nrGetPosGraduacoes()
+    };
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">rocket_launch</span> Criar Planilha';
+
+        document.getElementById('novorec-id').textContent      = res.id;
+        document.getElementById('novorec-url-txt').textContent = res.url;
+        document.getElementById('novorec-url').href            = res.url;
+        document.getElementById('novorec-email-status').textContent = res.emailEnviado
+          ? '📧 Link e ID enviados para ' + _usuario.email
+          : '⚠️ Não foi possível enviar por e-mail — anote o ID acima';
+
+        document.getElementById('nr-wizard').style.display     = 'none';
+        document.getElementById('nr-stepper').style.display    = 'none';
+        document.getElementById('novorec-resultado').style.display = 'block';
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">rocket_launch</span> Criar Planilha';
+        mostrarToast(err.message || 'Erro ao criar planilha.', 'erro', 8000);
+      })
+      .criarNovoRecrutamento(dados);
+  }
+
+  function resetarFormNovoRec() {
+    _nrPasso = 1;
+    _nrUorgs = [];
+    _nrUnidSelecionadas = {};
+    _nrUnidCustom = [];
+    document.getElementById('nr-nome').value = '';
+    document.getElementById('nr-emails-resposta').value = '';
+    document.getElementById('nr-uorgs-bulk').value = '';
+    document.getElementById('nr-grad-lista').value = '';
+    document.getElementById('nr-pos-lista').value  = '';
+    document.getElementById('nr-uorgs-lista-wrap').style.display = 'none';
+    document.getElementById('nr-unid-custom-wrap').style.display = 'none';
+    document.getElementById('novorec-resultado').style.display  = 'none';
+    document.getElementById('nr-wizard').style.display   = '';
+    document.getElementById('nr-stepper').style.display  = '';
+    _nrRenderStepper();
+    document.querySelectorAll('.nr-passo').forEach(function(el){ el.classList.remove('ativo'); });
+    document.getElementById('nr-p1').classList.add('ativo');
+    document.getElementById('nr-nome').focus();
+  }
+
+  function copiarTexto(elementId) {
+    var el = document.getElementById(elementId);
+    if (!el) return;
+    var txt = el.textContent || el.innerText;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(txt).then(function() {
+        mostrarToast('Copiado!', 'sucesso', 2000);
+      });
+    } else {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); mostrarToast('Copiado!', 'sucesso', 2000); } catch(e) {}
+      document.body.removeChild(ta);
+    }
+  }
+
+  // ── Diagnóstico da planilha ──────────────────────────────────────
+  function executarDiagnostico() {
+    mostrarToast('Consultando planilha...', 'aviso', 3000);
+    google.script.run
+      .withSuccessHandler(function(res) {
+        var html = '<p style="margin-bottom:10px;">Planilha ID: <code style="font-size:11px;background:#f0f4f8;padding:1px 6px;border-radius:4px;">'
+          + res.spreadsheetId + '</code></p>'
+          + '<p style="margin-bottom:6px;">Aba esperada: <code>' + res.abaEsperada + '</code> — '
+          + (res.abaEncontrada
+              ? '<span style="color:#2e7d32;font-weight:700;">✓ Encontrada</span> (' + res.totalLinhas + ' linhas)'
+              : '<span style="color:#c62828;font-weight:700;">✗ NÃO encontrada</span>')
+          + '</p>'
+          + (res.cabecalhoReal ? '<p style="font-size:11px;color:#7a8a9a;margin-bottom:10px;">1ª coluna do cabeçalho: <em>' + _esc(res.cabecalhoReal.substring(0,120)) + '...</em></p>' : '')
+          + '<table class="diag-table"><thead><tr>'
+          + '<th>Nome da aba</th><th>Linhas</th><th>Colunas</th><th>GID</th></tr></thead><tbody>'
+          + res.abas.map(function(a) {
+              var dest = a.nome.toLowerCase() === res.abaEsperada ? ' class="destaque"' : '';
+              return '<tr' + dest + '><td>' + _esc(a.nome) + '</td>'
+                + '<td>' + a.linhas + '</td><td>' + a.colunas + '</td>'
+                + '<td><span class="badge-gid">' + a.gid + '</span></td></tr>';
+            }).join('')
+          + '</tbody></table>'
+          + (res.abaEncontrada ? '' : '<p style="margin-top:12px;font-size:12px;color:#c62828;font-weight:600;">Ação necessária: renomeie a aba que contém os dados para <code>respostas</code> (minúsculas, sem acento), ou informe o nome correto para ajustar o código.</p>');
+
+        document.getElementById('diag-modal-body').innerHTML = html;
+        document.getElementById('diag-modal').classList.add('aberto');
+      })
+      .withFailureHandler(function(err) {
+        mostrarToast('Erro no diagnóstico: ' + (err.message || ''), 'erro');
+      })
+      .diagnosticarPlanilha();
+  }
+
+  // ── Dashboard ───────────────────────────────────────────────────
+  function renderDashboard() {
+    var d = _dashboard;
+
+    // Card de diagnóstico (quando a aba não é encontrada ou está vazia)
+    var diagArea = document.getElementById('diag-area');
+    if (!d._sheetEncontrada) {
+      diagArea.innerHTML =
+        '<div class="diag-card">'
+        + '<span class="material-icons">warning</span>'
+        + '<div class="diag-body">'
+        + '<h4>Aba "respostas" não encontrada na planilha</h4>'
+        + '<p>O painel lê os dados da aba chamada exatamente <code>respostas</code>. '
+        + 'Se os dados estão em outra aba (ex: "Respostas do formulário 1", "Sheet1"), '
+        + 'renomeie-a para <code>respostas</code> ou clique em Diagnóstico para ver as abas disponíveis.</p>'
+        + '<button class="btn-diag" onclick="executarDiagnostico()">'
+        + '<span class="material-icons">manage_search</span> Diagnóstico da Planilha</button>'
+        + '</div></div>';
+    } else if (d._totalLinhasBruto <= 1) {
+      diagArea.innerHTML =
+        '<div class="diag-card">'
+        + '<span class="material-icons">info</span>'
+        + '<div class="diag-body">'
+        + '<h4>Aba "respostas" encontrada, mas sem dados</h4>'
+        + '<p>A aba existe e tem <strong>' + d._totalLinhasBruto + ' linha(s)</strong> '
+        + '(apenas cabeçalho ou vazia). Aguardando as primeiras inscrições pelo formulário.</p>'
+        + '<button class="btn-diag" onclick="executarDiagnostico()">'
+        + '<span class="material-icons">manage_search</span> Diagnóstico completo</button>'
+        + '</div></div>';
+    } else if (d.total === 0 && _usuario && _usuario.unidades !== '*') {
+      diagArea.innerHTML =
+        '<div class="diag-card">'
+        + '<span class="material-icons">filter_list</span>'
+        + '<div class="diag-body">'
+        + '<h4>Sem candidatos nas suas unidades autorizadas</h4>'
+        + '<p>A planilha tem dados, mas nenhum candidato está vinculado às unidades que você tem acesso. '
+        + 'Verifique com o administrador as unidades configuradas no seu perfil de AVALIADOR.</p>'
+        + '</div></div>';
+    } else {
+      diagArea.innerHTML = '';
+    }
+
+    // KPIs
+    document.getElementById('kpi-total').textContent    = d.total;
+    document.getElementById('kpi-unidades').textContent = d.totalUnidades;
+    document.getElementById('kpi-conjuge').textContent  = d.comConjuge;
+    document.getElementById('kpi-pos').textContent      = d.posGraduados;
+
+    // Chart: por unidade
+    var maxU = d.porUnidade.length > 0 ? d.porUnidade[0].count : 1;
+    var htmlU = d.porUnidade.length === 0
+      ? '<div style="color:#aaa;font-size:12px;">Nenhum candidato registrado.</div>'
+      : d.porUnidade.slice(0, 12).map(function(item) {
+          var pct = Math.round((item.count / maxU) * 100);
+          return '<div class="bar-row">'
+            + '<div class="bar-label" title="' + item.unidade + '">' + item.unidade + '</div>'
+            + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>'
+            + '<div class="bar-count">' + item.count + '</div>'
+            + '</div>';
+        }).join('');
+    document.getElementById('chart-unidades').innerHTML = htmlU;
+
+    // Chart: formação
+    var maxF = Math.max.apply(null, d.porFormacao.map(function(f){ return f.count; }).concat([1]));
+    var cores = ['', 'verde', 'ouro', 'roxo'];
+    var htmlF = d.porFormacao.map(function(item, i) {
+      var pct = Math.round((item.count / maxF) * 100);
+      var pctTotal = d.total > 0 ? Math.round((item.count / d.total) * 100) : 0;
+      return '<div class="bar-row">'
+        + '<div class="bar-label">' + item.label + '</div>'
+        + '<div class="bar-track"><div class="bar-fill ' + (cores[i]||'') + '" style="width:' + pct + '%"></div></div>'
+        + '<div class="bar-count">' + item.count + '</div>'
+        + '</div>'
+        + '<div style="font-size:10px;color:#aaa;margin:-6px 0 8px 130px;">' + pctTotal + '% dos candidatos</div>';
+    }).join('');
+    document.getElementById('chart-formacao').innerHTML = htmlF || '<div style="color:#aaa;font-size:12px;">Sem dados.</div>';
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────
+  function mostrarToast(msg, tipo, duracao) {
+    tipo    = tipo    || 'aviso';
+    duracao = duracao || 4000;
+    var icones = { erro:'error', aviso:'warning', sucesso:'check_circle' };
+    var el = document.createElement('div');
+    el.className = 'toast ' + tipo;
+    el.innerHTML = '<span class="material-icons">' + (icones[tipo]||'info') + '</span>'
+      + '<span class="toast-msg">' + msg + '</span>'
+      + '<button class="toast-fechar" onclick="this.parentNode.remove()">×</button>';
+    var c = document.getElementById('toast-container');
+    c.innerHTML = '';
+    c.appendChild(el);
+    clearTimeout(mostrarToast._tm);
+    mostrarToast._tm = setTimeout(function() {
+      if (!el.parentNode) return;
+      el.classList.add('saindo');
+      setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
+    }, duracao);
+  }
+</script>
+</body>
+</html>

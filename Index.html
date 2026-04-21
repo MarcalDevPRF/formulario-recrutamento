@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <script>var _emailCandidato = '<?= Session.getActiveUser().getEmail().toLowerCase() ?>';</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Variáveis ─────────────────────────────── */
+    :root {
+      --azul:    #002244;
+      --azul-clr:#1565C0;
+      --ouro:    #FFC400;
+      --branco:  #ffffff;
+      --bg:      #eef2f7;
+      --bd:      #dde3ea;
+      --verde:   #2e7d32;
+      --roxo:    #6a1b9a;
+      --erro:    #c62828;
+      --sh:      0 2px 16px rgba(0,34,68,.12);
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0; }
+    body { font-family:'Inter','Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:#1a2332; line-height:1.6; }
+
+    /* ─── Container ──────────────────────────────── */
+    .app-container { max-width:640px; margin:0 auto; background:var(--branco); min-height:100vh; box-shadow:var(--sh); display:flex; flex-direction:column; }
+
+    /* ─── Header ─────────────────────────────────── */
+    header { background:linear-gradient(145deg,#001228 0%,#00429a 100%); color:var(--branco); padding:22px 24px 18px; text-align:center; border-bottom:4px solid var(--ouro); }
+    .hbadge { display:inline-block; background:var(--ouro); color:var(--azul); font-size:.67em; font-weight:700; padding:3px 14px; border-radius:20px; text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }
+    header h1 { font-size:1.25em; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+    header p  { margin-top:4px; font-size:.8em; opacity:.68; }
+
+    /* ─── Steps (4 etapas) ───────────────────────── */
+    .steps-bar { background:var(--azul); padding:13px 16px 11px; }
+    .steps-row { display:flex; align-items:center; max-width:440px; margin:0 auto; }
+    .step-item { display:flex; flex-direction:column; align-items:center; flex:1; }
+    .step-circle { width:28px; height:28px; border-radius:50%; border:2px solid rgba(255,255,255,.22); color:rgba(255,255,255,.32); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:11px; transition:all .3s; background:transparent; }
+    .step-circle.active { background:var(--ouro); border-color:var(--ouro); color:var(--azul); }
+    .step-circle.done   { background:#43a047; border-color:#43a047; color:#fff; font-size:13px; }
+    .step-lbl { font-size:.56em; color:rgba(255,255,255,.36); margin-top:3px; text-transform:uppercase; letter-spacing:.3px; transition:color .3s; }
+    .step-lbl.active { color:var(--ouro); }
+    .step-lbl.done   { color:#81c784; }
+    .step-line { flex:1; height:2px; background:rgba(255,255,255,.15); margin-bottom:16px; transition:background .3s; }
+    .step-line.done { background:#43a047; }
+
+    /* ─── Content ────────────────────────────────── */
+    .content { padding:26px 22px; flex-grow:1; }
+    .tela { display:none; }
+    .tela.ativa { display:block; animation:fadeUp .35s ease; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ─── Sec title ──────────────────────────────── */
+    .sec-title { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+    .sec-icon  { width:42px; height:42px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+    .sec-icon .material-icons { font-size:21px; color:#fff; }
+    .sec-icon.azul  { background:linear-gradient(135deg,#001a3d,#1565C0); }
+    .sec-icon.verde { background:linear-gradient(135deg,#1b5e20,#43a047); }
+    .sec-icon.roxo  { background:linear-gradient(135deg,#4a148c,#8e24aa); }
+    .sec-icon.ouro  { background:linear-gradient(135deg,#e65100,#FFC400); }
+    .sec-title h2   { font-size:1.12em; color:var(--azul); font-weight:700; }
+    .sec-title small { display:block; font-size:.74em; color:#8a96a3; font-weight:400; margin-top:1px; }
+
+    /* ─── Info box ───────────────────────────────── */
+    .info-box { background:linear-gradient(135deg,#e8f0fe,#f0f7ff); border-left:4px solid var(--azul-clr); border-radius:0 8px 8px 0; padding:12px 14px; margin-bottom:22px; display:flex; gap:10px; align-items:flex-start; }
+    .info-box .material-icons { color:var(--azul-clr); font-size:18px; flex-shrink:0; margin-top:1px; }
+    .info-box p { font-size:.865em; color:#334; line-height:1.55; margin:0; }
+    .info-box.sm { padding:9px 12px; margin-bottom:11px; }
+    .info-box.sm p { font-size:.8em; }
+
+    /* ─── Form fields ────────────────────────────── */
+    .form-group { margin-bottom:17px; }
+    .flabel { display:block; font-weight:600; margin-bottom:6px; color:var(--azul); font-size:.865em; }
+    .obrig  { color:var(--erro); }
+    input[type="text"],input[type="tel"],input[type="date"],select,textarea {
+      width:100%; padding:11px 13px; border:1.5px solid var(--bd); border-radius:8px;
+      font-size:15px; font-family:inherit; background:#f8fafc; color:#1a2332;
+      transition:border-color .2s,box-shadow .2s,background .2s;
+    }
+    input:focus,select:focus,textarea:focus { outline:none; border-color:var(--azul-clr); box-shadow:0 0 0 3px rgba(21,101,192,.13); background:#fff; }
+    input.invalid,select.invalid,textarea.invalid { border-color:var(--erro); box-shadow:0 0 0 3px rgba(198,40,40,.10); }
+    textarea { resize:vertical; min-height:90px; }
+    select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23667' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 13px center; padding-right:34px; }
+    .phone-row { display:flex; gap:10px; }
+    .ddd-w { flex:0 0 80px; }
+    .tel-w  { flex:1; }
+
+    /* ─── Divisor ────────────────────────────────── */
+    .sec-div { display:flex; align-items:center; gap:10px; margin:24px 0 18px; }
+    .sec-div::before,.sec-div::after { content:''; flex:1; height:1px; background:var(--bd); }
+    .sec-div span { font-size:.7em; font-weight:700; color:#8a96a3; text-transform:uppercase; letter-spacing:.9px; white-space:nowrap; }
+
+    /* ─── Botões SIM / NÃO ───────────────────────── */
+    .conjuge-pergunta { font-weight:600; color:var(--azul); font-size:.865em; margin-bottom:4px; }
+    .yn-group { display:flex; gap:12px; margin-top:10px; }
+    .yn-btn { flex:1; padding:14px 10px; border:2px solid var(--bd); border-radius:12px; background:#f8fafc; font-size:14px; font-weight:700; font-family:inherit; cursor:pointer; color:#8a96a3; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:7px; }
+    .yn-btn:hover { border-color:var(--azul-clr); color:var(--azul-clr); background:#e8f0fe; }
+    .yn-btn .material-icons { font-size:19px; }
+    .yn-btn.yn-sim { border-color:var(--azul-clr); background:#e8f0fe; color:var(--azul-clr); }
+    .yn-btn.yn-nao { border-color:var(--azul-clr); background:#e8f0fe; color:var(--azul-clr); }
+    .yn-group-err .yn-btn { border-color:var(--erro); animation:shake .3s; }
+
+    /* ─── Seção cônjuge ──────────────────────────── */
+    .secao-conjuge { border-top:2px dashed var(--bd); padding-top:4px; margin-top:8px; animation:slideDown .35s ease; }
+    @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes shake    { 0%,100%{transform:translateX(0)} 25%,75%{transform:translateX(-4px)} 50%{transform:translateX(4px)} }
+
+    /* ─── Upload zone ────────────────────────────── */
+    .upload-zone { border:2px dashed var(--bd); border-radius:10px; padding:20px 14px; text-align:center; cursor:pointer; transition:all .2s; background:#f8fafc; color:#8a96a3; }
+    .upload-zone:hover { border-color:var(--azul-clr); background:#e8f0fe; color:var(--azul-clr); }
+    .upload-zone.upload-err { border-color:var(--erro); background:#fff5f5; }
+    .upload-zone .material-icons { font-size:28px; display:block; margin-bottom:5px; }
+    .upload-zone .uz-title { font-size:.88em; font-weight:600; }
+    .upload-zone .uz-hint  { font-size:.73em; opacity:.7; margin-top:2px; display:block; }
+    /* ─── Multi-upload ───────────────────────────── */
+    .uz-files-list { margin-bottom:8px; }
+    .uz-file-item { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f0faf0; border:1.5px solid #a5d6a7; border-radius:8px; margin-bottom:6px; font-size:.84em; animation:fadeUp .2s; }
+    .uz-file-item .material-icons { color:#43a047; font-size:18px; flex-shrink:0; }
+    .uz-file-item a { color:var(--azul-clr); text-decoration:none; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+    .uz-file-item a:hover { text-decoration:underline; }
+    .uz-file-item .btn-rm-file { background:none; border:none; color:#bbb; cursor:pointer; padding:2px 4px; border-radius:4px; flex-shrink:0; display:flex; align-items:center; }
+    .uz-file-item .btn-rm-file .material-icons { font-size:18px; color:inherit; }
+    .uz-file-item .btn-rm-file:hover { color:var(--erro); background:#fce8e6; }
+    .upload-zone.compact { padding:11px 14px; }
+    .upload-zone.compact .material-icons { font-size:20px; margin-bottom:2px; }
+    .upload-zone.compact .uz-title { font-size:.8em; }
+    .upload-zone.compact .uz-hint  { font-size:.68em; }
+
+    /* ─── Autocomplete ───────────────────────────── */
+    .ac-wrap { position:relative; }
+    .ac-drop  { display:none; position:absolute; top:calc(100% + 2px); left:0; right:0; background:#fff; border:1.5px solid var(--azul-clr); border-radius:8px; max-height:210px; overflow-y:auto; z-index:1000; box-shadow:0 8px 20px rgba(0,34,68,.14); }
+    .ac-item  { padding:10px 14px; cursor:pointer; font-size:14px; border-bottom:1px solid #f0f4f8; }
+    .ac-item:last-child { border-bottom:none; }
+    .ac-item:hover,.ac-item.sel { background:#e8f0fe; }
+    .ac-item mark { background:#fff176; font-weight:700; border-radius:2px; }
+
+    /* ─── Campos dinâmicos ───────────────────────── */
+    .dyn-item { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; animation:slideDown .2s; }
+    .dyn-item .ac-wrap { flex:1; }
+    .btn-rm { background:none; border:none; color:#aaa; cursor:pointer; padding:9px 4px; display:flex; align-items:center; flex-shrink:0; border-radius:6px; transition:all .15s; }
+    .btn-rm:hover { color:var(--erro); background:#fce8e6; }
+    .btn-rm .material-icons { font-size:20px; }
+    .btn-add-c { margin-top:2px; margin-bottom:17px; text-align:right; }
+    .btn-add   { background:none; border:none; color:var(--azul-clr); font-weight:600; cursor:pointer; padding:5px 10px; font-size:.84em; display:inline-flex; align-items:center; gap:4px; border-radius:6px; font-family:inherit; transition:background .15s; }
+    .btn-add:hover { background:#e8f0fe; }
+
+    /* ─── SouGov status ──────────────────────────── */
+    .sougov-status { padding:11px 14px; background:#e8f5e9; border:1.5px solid #a5d6a7; border-radius:8px; font-size:.88em; color:var(--verde); margin-bottom:10px; align-items:center; gap:8px; display:none; }
+    .sougov-status.visivel { display:flex; }
+    .sougov-status .material-icons { font-size:19px; }
+
+    /* ─── Botões ──────────────────────────────────── */
+    .btn-block { width:100%; padding:14px; border:none; border-radius:11px; font-size:14px; font-weight:700; font-family:inherit; text-transform:uppercase; letter-spacing:.5px; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:10px; }
+    .btn-primary { background:linear-gradient(135deg,#002244,#1565C0); color:#fff; }
+    .btn-primary:hover { box-shadow:0 5px 20px rgba(0,34,68,.28); transform:translateY(-1px); }
+    .btn-primary:active { transform:none; box-shadow:none; }
+    .btn-ouro   { background:linear-gradient(135deg,#FFC400,#FFD740); color:var(--azul); margin-bottom:10px; }
+    .btn-ouro:hover   { box-shadow:0 4px 14px rgba(255,196,0,.36); transform:translateY(-1px); }
+    .btn-ouro:active  { transform:none; box-shadow:none; }
+    .btn-voltar { background:#eceff1; color:#546e7a; font-weight:600; margin-top:6px; }
+    .btn-voltar:hover { background:#dde2e5; }
+    .btn-aceitar { background:linear-gradient(135deg,#1b5e20,#43a047); color:#fff; }
+    .btn-aceitar:hover { box-shadow:0 5px 18px rgba(43,160,71,.35); transform:translateY(-1px); }
+    button:disabled { opacity:.5!important; cursor:not-allowed!important; transform:none!important; box-shadow:none!important; }
+
+    /* ─── Questionário BFI ───────────────────────── */
+    .bfi-intro { background:linear-gradient(135deg,#f3e5f510,#ede7f618); border:1.5px solid #ce93d8; border-radius:12px; padding:17px; margin-bottom:20px; }
+    .bfi-intro h3 { color:var(--roxo); font-size:.98em; margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+    .bfi-intro h3 .material-icons { font-size:19px; }
+    .bfi-intro p  { font-size:.865em; color:#444; line-height:1.55; margin-bottom:7px; }
+    .bfi-intro p:last-child { margin-bottom:0; }
+    .termo-bfi { background:#fff8e1; border:1.5px solid var(--ouro); border-radius:10px; padding:13px 15px; margin-bottom:20px; font-size:.865em; color:#5d4037; }
+    .bfi-travado-banner { display:flex; align-items:flex-start; gap:12px; background:#fce4ec; border:1.5px solid #e91e63; border-radius:10px; padding:14px 16px; margin-bottom:20px; color:#880e4f; }
+    .bfi-travado-banner .material-icons { font-size:22px; flex-shrink:0; margin-top:1px; }
+    .bfi-travado-banner strong { display:block; font-size:.9em; margin-bottom:3px; }
+    .bfi-travado-banner p { margin:0; font-size:.82em; line-height:1.5; }
+    .bfi-travado #questionsContainer input[type="radio"] { pointer-events:none; opacity:.6; }
+    .bfi-travado #questionsContainer .qcard { opacity:.85; }
+    .bfi-travado #termosBfiDiv, .bfi-travado #fabDraft { display:none !important; }
+    .termo-bfi label { display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:600; }
+    .termo-bfi input[type="checkbox"] { margin-top:2px; flex-shrink:0; width:16px; height:16px; }
+    .likert-legend { display:flex; justify-content:space-between; align-items:center; background:var(--azul); color:#fff; border-radius:10px; padding:10px 15px; margin-bottom:16px; font-size:.77em; }
+    .likert-nums { display:flex; gap:7px; align-items:center; }
+    .lk-badge { width:25px; height:25px; border-radius:50%; border:1.5px solid rgba(255,255,255,.4); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:10px; }
+    .bfi-counter { position:sticky; top:0; background:rgba(255,255,255,.96); border-bottom:1px solid var(--bd); padding:8px 0 7px; margin-bottom:14px; z-index:100; text-align:center; font-size:.8em; color:#556; backdrop-filter:blur(4px); }
+    .bfi-counter strong { color:var(--azul); }
+    .bfi-pbar  { height:4px; background:#dde3ea; border-radius:2px; margin-top:7px; overflow:hidden; }
+    .bfi-pfill { height:100%; background:linear-gradient(90deg,var(--azul),var(--azul-clr)); border-radius:2px; transition:width .3s; width:0%; }
+    .q-card { background:#fff; border:1.5px solid var(--bd); border-radius:10px; padding:14px 15px; margin-bottom:9px; transition:border-color .2s; }
+    .q-card.answered { border-color:#a5d6a7; background:#f9fffc; }
+    .q-card.erro { border-color:var(--erro)!important; background:#fff5f5!important; animation:shake .3s; }
+    .q-head { display:flex; gap:9px; align-items:flex-start; margin-bottom:10px; }
+    .q-num  { flex-shrink:0; width:25px; height:25px; border-radius:50%; background:var(--azul); color:#fff; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+    .q-text { font-size:.86em; color:#1a2332; line-height:1.5; font-weight:500; }
+    .q-pref { color:#888; font-weight:400; font-style:italic; }
+    .likert-scale { display:flex; gap:5px; justify-content:center; align-items:center; }
+    .lk { display:flex; flex-direction:column; align-items:center; cursor:pointer; }
+    .lk input { position:absolute; opacity:0; width:0; height:0; }
+    .lk-btn { display:inline-flex; width:38px; height:38px; border-radius:50%; border:2px solid #d0d7de; align-items:center; justify-content:center; font-weight:700; font-size:13px; cursor:pointer; transition:all .15s; background:#f8fafc; color:#777; user-select:none; }
+    .lk-btn:hover { border-color:var(--azul-clr); color:var(--azul-clr); background:#e8f0fe; }
+    .lk input:checked + .lk-btn { background:var(--azul); border-color:var(--azul); color:#fff; transform:scale(1.12); box-shadow:0 2px 8px rgba(0,34,68,.25); }
+    .lk-labels { display:flex; justify-content:space-between; margin-top:6px; padding:0 2px; }
+    .lk-labels span { font-size:.62em; color:#999; max-width:58px; text-align:center; line-height:1.2; }
+
+    /* ─── FAB Rascunho ───────────────────────────── */
+    .fab-draft { position:fixed; bottom:22px; right:18px; background:linear-gradient(135deg,#FFC400,#FFD740); color:var(--azul); border:none; border-radius:50px; padding:13px 18px; font-size:.84em; font-weight:700; cursor:pointer; font-family:inherit; box-shadow:0 4px 16px rgba(255,196,0,.44); display:none; align-items:center; gap:7px; z-index:500; transition:all .2s; }
+    .fab-draft:hover { transform:translateY(-2px); box-shadow:0 6px 22px rgba(255,196,0,.55); }
+    .fab-draft.show { display:flex; }
+    .fab-draft .material-icons { font-size:18px; }
+
+    /* ─── Termo de compromisso ───────────────────── */
+    .termo-compromisso {
+      background:#fff;
+      border:1.5px solid var(--bd);
+      border-radius:12px;
+      padding:22px;
+      margin-bottom:22px;
+      font-size:.9em;
+      line-height:1.75;
+      color:#1a2332;
+    }
+    .termo-compromisso .termo-header {
+      text-align:center;
+      font-weight:700;
+      font-size:1em;
+      color:var(--azul);
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      margin-bottom:14px;
+      padding-bottom:10px;
+      border-bottom:2px solid var(--bd);
+    }
+    .termo-compromisso p { text-align:justify; }
+    .termo-compromisso strong { color:var(--azul); }
+    .termo-aceite { background:#f0faf0; border:1.5px solid #a5d6a7; border-radius:10px; padding:13px 15px; margin:18px 0 0; display:flex; align-items:flex-start; gap:10px; font-size:.86em; color:#2e5e20; }
+    .termo-aceite input[type="checkbox"] { margin-top:2px; width:16px; height:16px; flex-shrink:0; cursor:pointer; }
+    .termo-aceite label { cursor:pointer; font-weight:600; line-height:1.5; }
+
+    /* ─── Assinatura digital ─────────────────────── */
+    .assinatura-bloco { background:linear-gradient(135deg,#e8f0fe,#f0f7ff); border:2px solid var(--azul-clr); border-radius:12px; padding:20px; margin:20px 0; display:none; }
+    .assinatura-bloco.visivel { display:block; animation:fadeUp .4s ease; }
+    .assin-header { display:flex; align-items:center; justify-content:center; gap:8px; color:var(--azul); font-weight:700; font-size:.95em; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid rgba(21,101,192,.2); }
+    .assin-header .material-icons { color:#43a047; font-size:22px; }
+    .assin-body { background:#fff; border-radius:8px; padding:14px; margin-bottom:12px; }
+    .assin-linha { display:flex; gap:8px; padding:5px 0; border-bottom:1px solid #eee; font-size:.875em; }
+    .assin-linha:last-child { border-bottom:none; }
+    .assin-linha .al-label { color:#888; width:100px; flex-shrink:0; font-size:.9em; }
+    .assin-linha strong { color:#1a2332; }
+    .assin-footer { text-align:center; font-size:.7em; color:#999; font-style:italic; }
+
+    /* ─── Toast ──────────────────────────────────── */
+    /* ── Toast central ── */
+    #toast-container { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:9999; }
+    .toast { display:flex; align-items:flex-start; gap:12px; padding:16px 20px; border-radius:10px; max-width:360px; width:92%; box-shadow:0 8px 32px rgba(0,0,0,.22); font-size:.9em; line-height:1.55; pointer-events:auto; animation:toastIn .25s ease; }
+    .toast.saindo { animation:toastOut .3s ease forwards; }
+    .toast.info    { background:#e8f0fe; border-left:5px solid var(--azul-clr); color:#1a237e; }
+    .toast.sucesso { background:#e8f5e9; border-left:5px solid #43a047;        color:#1b5e20; }
+    .toast.verde   { background:#e8f5e9; border-left:5px solid #43a047;        color:#1b5e20; }
+    .toast.azul    { background:#e8f0fe; border-left:5px solid var(--azul-clr); color:#1a237e; }
+    .toast.aviso   { background:#fffde7; border-left:5px solid #f9a825;        color:#5f4000; }
+    .toast.erro    { background:#fff0f0; border-left:5px solid #c62828;        color:#7f0000; }
+    .toast-icon { flex-shrink:0; font-size:20px !important; margin-top:1px; }
+    .toast-msg  { flex:1; }
+    .toast-fechar { flex-shrink:0; background:none; border:none; cursor:pointer; font-size:18px; line-height:1; color:inherit; opacity:.5; padding:0 2px; }
+    .toast-fechar:hover { opacity:1; }
+    @keyframes toastIn  { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
+    @keyframes toastOut { from{opacity:1;transform:scale(1)}   to{opacity:0;transform:scale(.88)} }
+
+    /* ─── Tela de sucesso ────────────────────────── */
+    .success-wrap { text-align:center; padding:34px 14px 22px; }
+    .success-icon { width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#e8f5e9,#c8e6c9); border:3px solid #43a047; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; }
+    .success-icon .material-icons { font-size:44px; color:var(--verde); }
+    .success-wrap h2 { color:var(--verde); font-size:1.35em; margin-bottom:9px; }
+    .success-wrap > p { color:#555; font-size:.93em; }
+    .success-details { background:#f8fafc; border:1px solid var(--bd); border-radius:10px; padding:13px 15px; text-align:left; margin-top:18px; }
+    .s-detail { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid #eee; font-size:.86em; }
+    .s-detail:last-child { border-bottom:none; }
+    .s-detail .material-icons { color:var(--azul-clr); font-size:19px; flex-shrink:0; margin-top:1px; }
+
+    /* ─── Footer ─────────────────────────────────── */
+    footer { background:var(--azul); color:rgba(255,255,255,.48); text-align:center; padding:13px; font-size:.74em; }
+    footer strong { color:var(--ouro); }
+
+    /* ─── Loading ────────────────────────────────── */
+    #loadingOverlay { display:none; position:fixed; inset:0; background:rgba(255,255,255,.92); z-index:9999; justify-content:center; align-items:center; flex-direction:column; backdrop-filter:blur(4px); }
+    .spinner { border:4px solid #e0e6ed; border-top-color:var(--azul); border-radius:50%; width:40px; height:40px; animation:spin .85s linear infinite; margin-bottom:13px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    #loadingText { color:var(--azul); font-weight:600; font-size:.86em; }
+
+    @media(max-width:400px) {
+      .lk-btn { width:33px; height:33px; font-size:11px; }
+      header h1 { font-size:1.05em; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<!-- FAB rascunho (visível apenas na tela 3) -->
+<button class="fab-draft" id="fabDraft" onclick="salvarRascunho()">
+  <span class="material-icons">save</span> Salvar Rascunho
+</button>
+
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingText">Carregando...</div>
+</div>
+
+<div class="app-container">
+
+  <!-- ═══ HEADER ═══ -->
+  <header>
+    <div class="hbadge">Recrutamento Interno</div>
+    <h1>Polícia Rodoviária Federal</h1>
+    <p>Formulário de Inscrição — Restrito ao domínio @prf.gov.br</p>
+  </header>
+
+  <!-- ═══ STEPS (4) ═══ -->
+  <div class="steps-bar" id="stepsBar">
+    <div class="steps-row">
+      <div class="step-item">
+        <div class="step-circle active" id="sc1">1</div>
+        <div class="step-lbl active" id="sl1">Dados</div>
+      </div>
+      <div class="step-line" id="ln1"></div>
+      <div class="step-item">
+        <div class="step-circle" id="sc2">2</div>
+        <div class="step-lbl" id="sl2">Oportunidade</div>
+      </div>
+      <div class="step-line" id="ln2"></div>
+      <div class="step-item">
+        <div class="step-circle" id="sc3">3</div>
+        <div class="step-lbl" id="sl3">Formação</div>
+      </div>
+      <div class="step-line" id="ln3"></div>
+      <div class="step-item">
+        <div class="step-circle" id="sc4">4</div>
+        <div class="step-lbl" id="sl4">Perfil</div>
+      </div>
+      <div class="step-line" id="ln4"></div>
+      <div class="step-item">
+        <div class="step-circle" id="sc5">5</div>
+        <div class="step-lbl" id="sl5">Compromisso</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <form id="formPRF" novalidate>
+
+      <!-- ══════════════════════════════════════════
+           TELA 1 — DADOS PESSOAIS
+      ══════════════════════════════════════════ -->
+      <div id="tela1" class="tela ativa">
+        <div class="sec-title">
+          <div class="sec-icon azul"><span class="material-icons">person</span></div>
+          <div><h2>Dados Pessoais</h2><small>Etapa 1 de 5 — Identificação</small></div>
+        </div>
+
+        <div class="info-box">
+          <span class="material-icons">info</span>
+          <p>Preencha seus dados conforme o <strong>Sistema Funcional da PRF</strong>. Todos os campos são obrigatórios. Suas informações serão vinculadas automaticamente ao seu e-mail <strong>@prf.gov.br</strong>. Se você já se inscreveu anteriormente, suas respostas serão carregadas automaticamente.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="flabel">Nome Completo <span class="obrig">*</span></label>
+          <input type="text" id="nome" name="nome" placeholder="Conforme cadastro no sistema funcional">
+        </div>
+
+        <div class="form-group">
+          <label class="flabel">Matrícula <span class="obrig">*</span></label>
+          <input type="text" id="matricula" name="matricula" pattern="\d+" inputmode="numeric" placeholder="Somente números — Ex: 1234567">
+        </div>
+
+        <div class="form-group">
+          <label class="flabel">Cargo <span class="obrig">*</span></label>
+          <select id="cargo" name="cargo">
+            <option value="">Selecione seu cargo...</option>
+            <option value="Policial Rodoviário(a) Federal">Policial Rodoviário(a) Federal</option>
+            <option value="Servidor(a) Administrativo(a)">Servidor(a) Administrativo(a)</option>
+          </select>
+        </div>
+
+        <div class="phone-row">
+          <div class="form-group ddd-w">
+            <label class="flabel">DDD <span class="obrig">*</span></label>
+            <input type="text" id="ddd" name="ddd" pattern="\d{2}" maxlength="2" inputmode="numeric" placeholder="XX">
+          </div>
+          <div class="form-group tel-w">
+            <label class="flabel">Celular <span class="obrig">*</span></label>
+            <input type="tel" id="telefone" name="telefone" pattern="9\d{8}" maxlength="9" inputmode="tel" placeholder="9XXXXXXXX">
+          </div>
+        </div>
+
+        <!-- Cônjuge -->
+        <div class="sec-div"><span>Acompanhamento de Cônjuge</span></div>
+
+        <div class="form-group">
+          <div class="conjuge-pergunta">Deseja acompanhamento de cônjuge? <span class="obrig">*</span></div>
+          <div class="yn-group" id="ynGroup">
+            <button type="button" class="yn-btn" id="btnNao" onclick="selecionarConjuge('nao')">
+              <span class="material-icons">cancel</span> NÃO
+            </button>
+            <button type="button" class="yn-btn" id="btnSim" onclick="selecionarConjuge('sim')">
+              <span class="material-icons">check_circle</span> SIM
+            </button>
+          </div>
+          <input type="hidden" name="conjuge" id="conjugeHidden">
+        </div>
+
+        <!-- Dados do cônjuge (oculto) -->
+        <div id="secaoConjuge" class="secao-conjuge" style="display:none;">
+          <div class="sec-div"><span>Dados do Cônjuge</span></div>
+          <div class="form-group">
+            <label class="flabel">Nome Completo do Cônjuge <span class="obrig">*</span></label>
+            <input type="text" id="conjugeNome" name="conjugeNome" placeholder="Nome completo conforme documento">
+          </div>
+          <div class="form-group">
+            <label class="flabel">Matrícula do Cônjuge <span class="obrig">*</span></label>
+            <input type="text" id="conjugeMatricula" name="conjugeMatricula" inputmode="numeric" placeholder="Somente números">
+          </div>
+          <div class="form-group">
+            <label class="flabel">E-mail Institucional do Cônjuge <span class="obrig">*</span></label>
+            <input type="email" id="conjugeEmail" name="conjugeEmail" placeholder="usuario@prf.gov.br">
+          </div>
+          <div class="form-group">
+            <label class="flabel">Tipo de União <span class="obrig">*</span></label>
+            <select id="tipoUniao" name="tipoUniao">
+              <option value="">Selecione o tipo de união...</option>
+              <option value="Casamento Civil">Casamento Civil</option>
+              <option value="União Estável">União Estável</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="flabel">Data da União <span class="obrig">*</span></label>
+            <input type="date" id="dataUniao" name="dataUniao">
+          </div>
+          <div class="sec-div"><span>Endereços</span></div>
+          <div class="form-group">
+            <label class="flabel">Endereço do Cônjuge 1 <span class="obrig">*</span></label>
+            <input type="text" id="enderecoConjuge1" name="enderecoConjuge1" placeholder="Logradouro, nº, complemento, bairro, cidade — UF">
+          </div>
+          <div class="form-group">
+            <label class="flabel">Endereço do Cônjuge 2 <span class="obrig">*</span></label>
+            <input type="text" id="enderecoConjuge2" name="enderecoConjuge2" placeholder="Segundo endereço (destino após lotação)">
+          </div>
+          <div class="sec-div"><span>Lotações</span></div>
+          <div class="form-group">
+            <label class="flabel">Lotação do Cônjuge 1 <span class="obrig">*</span></label>
+            <div class="info-box sm"><span class="material-icons">help_outline</span><p>Digite a <strong>sigla</strong> da UORG para filtrar a lista.</p></div>
+            <div class="ac-wrap"><input type="text" id="lotacaoConjuge1" name="lotacaoConjuge1" placeholder="Ex: SRPRF/GO, DEL/DF..."><div class="ac-drop" id="dropLot1"></div></div>
+          </div>
+          <div class="form-group">
+            <label class="flabel">Lotação do Cônjuge 2 <span class="obrig">*</span></label>
+            <div class="ac-wrap"><input type="text" id="lotacaoConjuge2" name="lotacaoConjuge2" placeholder="Ex: SRPRF/GO, DEL/DF..."><div class="ac-drop" id="dropLot2"></div></div>
+          </div>
+          <div class="sec-div"><span>Documentos Comprobatórios</span></div>
+
+          <!-- Upload 1 — Comprovante de União -->
+          <div class="form-group">
+            <label class="flabel">Comprovante de União <span class="obrig">*</span></label>
+            <div class="info-box sm"><span class="material-icons">help_outline</span><p>Certidão de casamento civil ou escritura de união estável registrada em cartório.</p></div>
+            <input type="file" id="fileUniao" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+            <input type="hidden" name="urlComprovUniao" id="urlComprovUniao">
+            <div class="uz-files-list" id="filesListUniao"></div>
+            <div class="upload-zone" id="uzUniao" onclick="document.getElementById('fileUniao').click()">
+              <span class="material-icons">cloud_upload</span>
+              <span class="uz-title" id="uzLabelUniao">Clique para selecionar</span>
+              <span class="uz-hint">PDF, JPG ou PNG</span>
+            </div>
+          </div>
+
+          <!-- Upload 2 — Comprovante de Coabitação -->
+          <div class="form-group">
+            <label class="flabel">Comprovante de Coabitação <span class="obrig">*</span></label>
+            <div class="info-box sm"><span class="material-icons">help_outline</span><p>Comprovante de residência em nome do casal (conta de água, luz, contrato de aluguel etc.).</p></div>
+            <input type="file" id="fileCoab" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+            <input type="hidden" name="urlComprovCoab" id="urlComprovCoab">
+            <div class="uz-files-list" id="filesListCoab"></div>
+            <div class="upload-zone" id="uzCoab" onclick="document.getElementById('fileCoab').click()">
+              <span class="material-icons">cloud_upload</span>
+              <span class="uz-title" id="uzLabelCoab">Clique para selecionar</span>
+              <span class="uz-hint">PDF, JPG ou PNG</span>
+            </div>
+          </div>
+
+          <!-- Concordância do cônjuge obtida automaticamente por e-mail -->
+          <div class="info-box sm"><span class="material-icons">mark_email_read</span><p>A <strong>concordância do cônjuge</strong> será solicitada automaticamente por e-mail após o envio desta inscrição. Um PDF da declaração será gerado e salvo quando o cônjuge confirmar pelo link recebido.</p></div>
+        </div><!-- /secaoConjuge -->
+
+        <button type="button" class="btn-block btn-primary" id="btnProximo1" onclick="irParaTela(2)" style="display:none;">
+          <span class="material-icons">arrow_forward</span> Próximo — Escolha da Oportunidade
+        </button>
+      </div><!-- /tela1 -->
+
+      <!-- ══════════════════════════════════════════
+           TELA 2 — ESCOLHA DA OPORTUNIDADE
+      ══════════════════════════════════════════ -->
+      <div id="tela2" class="tela">
+        <div class="sec-title">
+          <div class="sec-icon verde"><span class="material-icons">location_city</span></div>
+          <div><h2>Escolha da Oportunidade</h2><small>Etapa 2 de 5 — Unidade de interesse</small></div>
+        </div>
+
+        <div class="info-box">
+          <span class="material-icons">info</span>
+          <p>Selecione a unidade para a qual deseja concorrer e descreva o que você sabe sobre ela. Estas informações constarão no Termo de Compromisso e serão avaliadas no processo.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="flabel">Unidade de Oportunidade <span class="obrig">*</span></label>
+          <div class="info-box sm">
+            <span class="material-icons">help_outline</span>
+            <p>Selecione a unidade de oportunidade para a qual deseja concorrer. Este dado constará no Termo de Compromisso.</p>
+          </div>
+          <div class="ac-wrap">
+            <input type="text" id="unidadeOportunidade" name="unidadeOportunidade" placeholder="Digite para pesquisar a unidade..." autocomplete="off">
+            <div class="ac-drop" id="dropUnidade"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="flabel">O que você sabe sobre esta unidade? <span class="obrig">*</span></label>
+          <div class="info-box sm">
+            <span class="material-icons">help_outline</span>
+            <p>Descreva brevemente seu conhecimento sobre a unidade escolhida, sua missão, estrutura ou contexto operacional.</p>
+          </div>
+          <textarea id="conhecimentoUnidade" name="conhecimentoUnidade" rows="5" placeholder="Ex: A unidade atua na fiscalização da BR-060 e está subordinada à Superintendência Regional no Goiás..."></textarea>
+        </div>
+
+        <button type="button" class="btn-block btn-primary" onclick="irParaTela(3)">
+          <span class="material-icons">school</span> Próximo — Formação Acadêmica
+        </button>
+        <button type="button" class="btn-block btn-voltar" onclick="irParaTela(1)">
+          <span class="material-icons">arrow_back</span> Voltar
+        </button>
+      </div><!-- /tela2 -->
+
+      <!-- ══════════════════════════════════════════
+           TELA 3 — FORMAÇÃO ACADÊMICA
+      ══════════════════════════════════════════ -->
+      <div id="tela3" class="tela">
+        <div class="sec-title">
+          <div class="sec-icon verde"><span class="material-icons">school</span></div>
+          <div><h2>Formação Acadêmica</h2><small>Etapa 3 de 5 — Qualificações</small></div>
+        </div>
+        <div class="info-box">
+          <span class="material-icons">info</span>
+          <p><strong>Selecione da lista</strong> ou <strong>digite livremente</strong> para cadastrar um novo curso. Use <em>"Adicionar"</em> para incluir mais de uma formação. Anexe o <strong>Currículo SouGov</strong> em PDF para comprovação.</p>
+        </div>
+        <div class="form-group">
+          <label class="flabel">Graduação <span class="obrig">*</span></label>
+          <div id="container-graduacao"></div>
+          <div class="btn-add-c"><button type="button" class="btn-add" onclick="adicionarCampo('graduacao')"><span class="material-icons">add_circle_outline</span> Adicionar graduação</button></div>
+        </div>
+        <div class="form-group">
+          <label class="flabel">Pós-Graduação / Especialização</label>
+          <div id="container-pos"></div>
+          <div class="btn-add-c"><button type="button" class="btn-add" onclick="adicionarCampo('pos')"><span class="material-icons">add_circle_outline</span> Adicionar pós-graduação</button></div>
+        </div>
+        <div class="form-group">
+          <label class="flabel">Mestrado</label>
+          <div id="container-mestrado"></div>
+          <div class="btn-add-c"><button type="button" class="btn-add" onclick="adicionarCampo('mestrado')"><span class="material-icons">add_circle_outline</span> Adicionar mestrado</button></div>
+        </div>
+        <div class="form-group">
+          <label class="flabel">Doutorado</label>
+          <div id="container-doutorado"></div>
+          <div class="btn-add-c"><button type="button" class="btn-add" onclick="adicionarCampo('doutorado')"><span class="material-icons">add_circle_outline</span> Adicionar doutorado</button></div>
+        </div>
+        <div class="form-group">
+          <label class="flabel">Currículo SouGov (PDF) <span class="obrig">*</span></label>
+          <div class="info-box sm"><span class="material-icons">help_outline</span><p>Exporte em <strong>sougov.economia.gov.br</strong> e anexe aqui para comprovar a formação declarada.</p></div>
+          <input type="file" id="inputSouGov" accept=".pdf,application/pdf" style="display:none">
+          <input type="hidden" name="sougovUrl" id="sougovUrl">
+          <div class="uz-files-list" id="filesListSouGov"></div>
+          <div class="upload-zone" id="uzSouGov" onclick="document.getElementById('inputSouGov').click()">
+            <span class="material-icons">upload_file</span>
+            <span class="uz-title" id="uzLabelSouGov">Anexar Currículo SouGov (PDF)</span>
+            <span class="uz-hint">Somente PDF</span>
+          </div>
+        </div>
+        <button type="button" class="btn-block btn-primary" onclick="irParaTela(4)"><span class="material-icons">psychology</span> Próximo — Questionário de Perfil</button>
+        <button type="button" class="btn-block btn-voltar" onclick="irParaTela(2)"><span class="material-icons">arrow_back</span> Voltar</button>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TELA 4 — QUESTIONÁRIO BFI-44
+      ══════════════════════════════════════════ -->
+      <div id="tela4" class="tela">
+        <div class="sec-title">
+          <div class="sec-icon roxo"><span class="material-icons">psychology</span></div>
+          <div><h2>Perfil Comportamental</h2><small>Etapa 4 de 5 — Inventário BFI-44</small></div>
+        </div>
+        <div class="bfi-intro">
+          <h3><span class="material-icons">info</span> Sobre este questionário</h3>
+          <p>O <strong>BFI-44</strong> mapeia cinco dimensões do perfil comportamental: <em>Extroversão, Amabilidade, Conscienciosidade, Estabilidade Emocional e Abertura à Experiência</em>. Todas as <strong>44 afirmações devem ser respondidas</strong> para avançar.</p>
+          <p>Use a escala de <strong>1 (Discordo Fortemente)</strong> a <strong>5 (Concordo Fortemente)</strong>. Responda com base em como você <em>realmente é</em>. Os resultados são confidenciais e servem como ferramenta de autoconhecimento.</p>
+        </div>
+
+        <!-- Banner exibido quando o BFI já foi respondido anteriormente -->
+        <div id="bfiTravadoBanner" style="display:none;" class="bfi-travado-banner">
+          <span class="material-icons">lock</span>
+          <div>
+            <strong>Questionário já respondido</strong>
+            <p>O inventário comportamental foi registrado e não pode ser refeito. Suas respostas anteriores estão exibidas abaixo apenas para consulta.</p>
+          </div>
+        </div>
+
+        <div class="termo-bfi" id="termosBfiDiv">
+          <label>
+            <input type="checkbox" id="checkTermo" onchange="verificarHabilitacao()">
+            <span>Declaro que li e compreendo a natureza deste inventário e autorizo o uso das informações neste processo de recrutamento.</span>
+          </label>
+        </div>
+        <div class="likert-legend">
+          <span style="line-height:1.3">Discordo<br>Fortemente</span>
+          <div class="likert-nums"><div class="lk-badge">1</div><div class="lk-badge">2</div><div class="lk-badge">3</div><div class="lk-badge">4</div><div class="lk-badge">5</div></div>
+          <span style="text-align:right;line-height:1.3">Concordo<br>Fortemente</span>
+        </div>
+        <div class="bfi-counter" id="bfiCounter">
+          <strong id="bfiCount">0</strong> de 44 respondidas
+          <div class="bfi-pbar"><div class="bfi-pfill" id="bfiPfill"></div></div>
+        </div>
+        <div id="questionsContainer"></div>
+        <button type="button" class="btn-block btn-primary" id="btnProximo4" onclick="irParaTela(5)" disabled>
+          <span class="material-icons">article</span> Próximo — Termo de Compromisso
+        </button>
+        <button type="button" class="btn-block btn-voltar" onclick="irParaTela(3)"><span class="material-icons">arrow_back</span> Voltar</button>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TELA 5 — TERMO DE COMPROMISSO
+      ══════════════════════════════════════════ -->
+      <div id="tela5" class="tela">
+        <div class="sec-title">
+          <div class="sec-icon ouro"><span class="material-icons">gavel</span></div>
+          <div><h2>Termo de Compromisso</h2><small>Etapa 5 de 5 — Aceite e Assinatura</small></div>
+        </div>
+
+        <div class="info-box">
+          <span class="material-icons">info</span>
+          <p>Leia atentamente o termo abaixo. Ao aceitar, uma <strong>assinatura eletrônica</strong> será registrada com seu nome, cargo, data e hora. Após assinar, você poderá finalizar sua inscrição.</p>
+        </div>
+
+        <div class="termo-compromisso">
+          <div class="termo-header">Termo de Compromisso de Permanência</div>
+          <p>Eu, <strong id="termoNome">[Nome do Candidato]</strong>, matrícula nº <strong id="termoMatricula">[Matrícula]</strong>, comprometo-me a permanecer lotado(a) em Unidades da <strong id="termoArea">[Área Desejada]</strong> pelo período mínimo de 3 (três) anos, conforme condições estabelecidas no Edital deste RECRUTAMENTO. Estou ciente de que a movimentação será realizada sem ônus para a instituição, não gerando direito a ajuda de custo, transporte ou transporte de mobiliário e bagagem, nos termos do <strong>Decreto nº 4.004, de 8 de novembro de 2001</strong>.</p>
+        </div>
+
+        <div class="termo-aceite" id="termoAceiteDiv">
+          <input type="checkbox" id="checkAceite" onchange="document.getElementById('btnAceitar').disabled = !this.checked;">
+          <label for="checkAceite">Li e compreendi integralmente o Termo de Compromisso acima e concordo com todas as suas condições.</label>
+        </div>
+
+        <button type="button" class="btn-block btn-aceitar" id="btnAceitar" onclick="aceitarTermo()" disabled style="margin-top:14px;">
+          <span class="material-icons">how_to_vote</span> Aceitar e Assinar Eletronicamente
+        </button>
+
+        <!-- Assinatura gerada após aceite -->
+        <div class="assinatura-bloco" id="assinaturaBloco">
+          <div class="assin-header">
+            <span class="material-icons">verified</span>
+            COMPROMISSO ACEITO E ASSINADO ELETRONICAMENTE
+          </div>
+          <div class="assin-body">
+            <div class="assin-linha"><span class="al-label">Nome:</span><strong id="assinNome"></strong></div>
+            <div class="assin-linha"><span class="al-label">Cargo:</span><strong id="assinCargo"></strong></div>
+            <div class="assin-linha"><span class="al-label">Área:</span><strong id="assinArea"></strong></div>
+            <div class="assin-linha"><span class="al-label">Data/Hora:</span><strong id="assinData"></strong></div>
+          </div>
+          <div class="assin-footer">Assinatura registrada eletronicamente no sistema de Recrutamento Interno PRF</div>
+        </div>
+
+        <input type="hidden" id="dadosAssinatura" name="dadosAssinatura">
+
+        <button type="button" class="btn-block btn-primary" id="btnFinalizar" onclick="finalizarInscricao()" style="display:none;">
+          <span class="material-icons">send</span> Finalizar Inscrição
+        </button>
+        <button type="button" class="btn-block btn-voltar" id="btnVoltarTela4" onclick="irParaTela(4)">
+          <span class="material-icons">arrow_back</span> Voltar
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <footer>
+    Desenvolvido para uso exclusivo da <strong>PRF</strong> — Polícia Rodoviária Federal<br>
+    Acesso restrito ao domínio <strong>@prf.gov.br</strong>
+  </footer>
+</div>
+
+<script>
+/* ═════════════════════════════════════════════════════
+   ESTADO GLOBAL
+═════════════════════════════════════════════════════ */
+const form        = document.getElementById('formPRF');
+const loading     = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
+
+let opcoesGraduacao    = [];
+let opcoesPosGraduacao = [];
+let opcoesUorgs                = [];
+let opcoesUnidadesOportunidade = [];
+let bfiRespondidas             = 0;
+let bfiTravado                 = false;
+let _telaAtual                 = 1;
+
+/* ═════════════════════════════════════════════════════
+   BFI-44 — Questões
+═════════════════════════════════════════════════════ */
+const bfiQuestoes = [
+  "É cheio(a) de energia","Tende a criticar os outros","Faz um trabalho minucioso e completo",
+  "É deprimido(a) ou triste com frequência","É original(a) e cria novas ideias","É reservado(a) e calado(a)",
+  "É prestativo(a) e generoso(a) com os outros","Pode ser um pouco descuidado(a)",
+  "É relaxado(a) e lida bem com o estresse","Tem curiosidade sobre muitas coisas diferentes",
+  "É assertivo(a) e tem facilidade de influenciar","Tende a gerar conflitos com os outros",
+  "É um(a) trabalhador(a) confiável","Pode ser tenso(a) ou ansioso(a)",
+  "É inteligente e pensa profundamente sobre as coisas","Gera muito entusiasmo e animação",
+  "Tem uma natureza perdoadora","Tende a ser desorganizado(a)","Preocupa-se muito com as coisas",
+  "Tem uma imaginação ativa","Tende a ser quieto(a) e calado(a)","Geralmente confia nos outros",
+  "Tende a ser preguiçoso(a)","É emocionalmente estável e difícil de perturbar",
+  "É inventivo(a) e criativo(a)","Tem uma personalidade assertiva","Pode ser frio(a) e distante",
+  "Persevera até terminar uma tarefa","Pode ser temperamental e mudar de humor facilmente",
+  "Valoriza experiências artísticas e estéticas","Às vezes é tímido(a) ou inibido(a)",
+  "É atencioso(a) e gentil com quase todos","Faz as coisas com eficiência",
+  "Permanece calmo(a) em situações tensas","Prefere trabalhos de rotina","É extrovertido(a) e sociável",
+  "Às vezes é rude com os outros","Faz planos e os segue fielmente",
+  "Fica nervoso(a) ou irritado(a) facilmente","Gosta de refletir e explorar ideias",
+  "Tem poucos interesses artísticos","Gosta de cooperar com os outros",
+  "Distrai-se facilmente","É sofisticado(a) em arte, música ou literatura"
+];
+
+/* ═════════════════════════════════════════════════════
+   TOAST
+═════════════════════════════════════════════════════ */
+function mostrarToast(msg, tipo, duracao) {
+  tipo    = tipo    || 'info';
+  duracao = duracao || 4000;
+  var icones = {
+    info:    'info',
+    azul:    'info',
+    sucesso: 'check_circle',
+    verde:   'check_circle',
+    aviso:   'warning',
+    erro:    'error'
+  };
+  var el = document.createElement('div');
+  el.className = 'toast ' + tipo;
+  el.innerHTML =
+    '<span class="material-icons toast-icon">' + (icones[tipo] || 'info') + '</span>' +
+    '<span class="toast-msg">' + msg + '</span>' +
+    '<button class="toast-fechar" onclick="this.parentNode.remove()">×</button>';
+  var container = document.getElementById('toast-container');
+  container.innerHTML = '';
+  container.appendChild(el);
+  clearTimeout(mostrarToast._tm);
+  mostrarToast._tm = setTimeout(function() {
+    if (!el.parentNode) return;
+    el.classList.add('saindo');
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
+  }, duracao);
+}
+
+/* ═════════════════════════════════════════════════════
+   INICIALIZAÇÃO
+═════════════════════════════════════════════════════ */
+window.addEventListener('load', function () {
+  showLoading('Carregando formulário...');
+  gerarQuestionario();
+  inicializarAutocompleteFixo('unidadeOportunidade', 'dropUnidade', function(){ return opcoesUnidadesOportunidade; }, true);
+  inicializarAutocompleteFixo('lotacaoConjuge1', 'dropLot1', function(){ return opcoesUorgs; });
+  inicializarAutocompleteFixo('lotacaoConjuge2', 'dropLot2', function(){ return opcoesUorgs; });
+  inicializarUploadsConjuge();
+
+  // 1ª chamada: carrega apenas as listas (usa CacheService — rápido após 1ª vez)
+  google.script.run
+    .withSuccessHandler(function(listas) {
+      popularListas(listas);
+      hideLoading();
+
+      // 2ª chamada: verifica inscrição anterior em segundo plano
+      // Não bloqueia o formulário — usuário já pode interagir
+      showLoading('Verificando inscrição anterior...');
+      google.script.run
+        .withSuccessHandler(function(inscricao) {
+          hideLoading();
+          if (inscricao) {
+            mostrarToast('✏️ Respostas anteriores carregadas. Você pode alterar os campos.', 'azul', 7000);
+            preencherFormulario(inscricao);
+          }
+        })
+        .withFailureHandler(function() {
+          // Não-fatal: formulário já está funcional sem o pré-preenchimento
+          hideLoading();
+        })
+        .verificarInscricaoExistente();
+    })
+    .withFailureHandler(function() {
+      hideLoading();
+      mostrarToast('Erro ao carregar dados da planilha.', 'erro');
+    })
+    .getListasFormacao();
+
+  adicionarCampo('graduacao');
+  adicionarCampo('pos');
+  adicionarCampo('mestrado');
+  adicionarCampo('doutorado');
+});
+
+/* ═════════════════════════════════════════════════════
+   PRÉ-PREENCHER FORMULÁRIO (edição)
+═════════════════════════════════════════════════════ */
+function preencherFormulario(d) {
+  // Campos simples
+  var simples = ['nome','matricula','ddd','telefone','cargo','unidadeOportunidade','conhecimentoUnidade','sougovUrl'];
+  simples.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && d[id]) el.value = d[id];
+  });
+
+  // Cônjuge
+  if (d.conjuge === 'sim' || d.conjuge === 'Sim') {
+    selecionarConjuge('sim');
+    var camposC = ['conjugeNome','conjugeMatricula','conjugeEmail','tipoUniao','dataUniao',
+                   'enderecoConjuge1','enderecoConjuge2','lotacaoConjuge1','lotacaoConjuge2'];
+    camposC.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && d[id]) el.value = d[id];
+    });
+    marcarUploadAnterior('uniao', 'urlComprovUniao', 'filesListUniao', 'uzLabelUniao', d.urlComprovUniao);
+    marcarUploadAnterior('coab',  'urlComprovCoab',  'filesListCoab',  'uzLabelCoab',  d.urlComprovCoab);
+  } else if (d.conjuge === 'nao' || d.conjuge === 'Não') {
+    selecionarConjuge('nao');
+  }
+
+  // SouGov anteriormente enviado
+  if (d.sougovUrl) {
+    marcarUploadAnterior('sougov', 'sougovUrl', 'filesListSouGov', 'uzLabelSouGov', d.sougovUrl);
+  }
+
+  // Formações (campos dinâmicos)
+  preencherCamposDinamicos('graduacao', d.graduacao || []);
+  preencherCamposDinamicos('pos',       d.pos       || []);
+  preencherCamposDinamicos('mestrado',  d.mestrado  || []);
+  preencherCamposDinamicos('doutorado', d.doutorado || []);
+
+  // BFI — se já respondeu as 44 questões, exibe e trava
+  if (Array.isArray(d.bfiResponses) && d.bfiResponses.length === 44) {
+    d.bfiResponses.forEach(function(v, i) {
+      if (v >= 1 && v <= 5) {
+        var r = document.querySelector('input[name="r' + (i+1) + '"][value="' + v + '"]');
+        if (r) { r.checked = true; }
+      }
+    });
+    // Marcar cards como respondidos visualmente
+    for (var i = 1; i <= 44; i++) {
+      var card = document.getElementById('qc' + i);
+      if (card) card.classList.add('answered');
+    }
+    travarBFI();
+  }
+}
+
+function marcarUploadAnterior(slot, hiddenId, listId, labelId, urlsStr) {
+  if (!urlsStr) return;
+  var urls = String(urlsStr).split('|').filter(Boolean);
+  urls.forEach(function(u, i) {
+    _uploads[slot].push({ url: u, nome: 'Arquivo ' + (i + 1) + ' (enviado anteriormente)' });
+  });
+  _renderFileList(slot, hiddenId, listId, labelId);
+}
+
+function preencherCamposDinamicos(containerId, valores) {
+  if (!valores || !valores.length) return;
+  var container = document.getElementById('container-' + containerId);
+  container.innerHTML = '';
+  valores.forEach(function(v) {
+    adicionarCampo(containerId);
+    var inputs = container.querySelectorAll('input[name="' + containerId + '[]"]');
+    if (inputs.length) inputs[inputs.length - 1].value = v;
+  });
+}
+
+/* ═════════════════════════════════════════════════════
+   CÔNJUGE — SIM / NÃO
+═════════════════════════════════════════════════════ */
+function selecionarConjuge(opcao) {
+  document.getElementById('conjugeHidden').value = opcao;
+  document.getElementById('btnSim').classList.remove('yn-sim');
+  document.getElementById('btnNao').classList.remove('yn-nao');
+  document.getElementById('ynGroup').classList.remove('yn-group-err');
+  var secao = document.getElementById('secaoConjuge');
+  if (opcao === 'sim') {
+    document.getElementById('btnSim').classList.add('yn-sim');
+    secao.style.display = 'block';
+  } else {
+    document.getElementById('btnNao').classList.add('yn-nao');
+    secao.style.display = 'none';
+  }
+  document.getElementById('btnProximo1').style.display = 'flex';
+}
+
+/* ═════════════════════════════════════════════════════
+   UPLOADS MULTI-ARQUIVO
+═════════════════════════════════════════════════════ */
+
+// Armazena arrays de {url, nome} por slot de upload
+var _uploads = {
+  uniao:  [],
+  coab:   [],
+  sougov: []
+};
+
+// Renderiza a lista de arquivos de um slot e atualiza o hidden field
+function _renderFileList(slot, hiddenId, listId, labelId) {
+  var arr   = _uploads[slot];
+  var lista = document.getElementById(listId);
+  var label = document.getElementById(labelId);
+  lista.innerHTML = '';
+  arr.forEach(function(item, idx) {
+    var li = document.createElement('div');
+    li.className = 'uz-file-item';
+    li.innerHTML =
+      '<span class="material-icons">attach_file</span>' +
+      '<a href="' + item.url + '" target="_blank" title="' + item.nome + '">' + item.nome + '</a>' +
+      '<button type="button" class="btn-rm-file" title="Remover" onclick="_removerArquivo(\'' + slot + '\',\'' + hiddenId + '\',\'' + listId + '\',\'' + labelId + '\',' + idx + ')">' +
+        '<span class="material-icons">cancel</span>' +
+      '</button>';
+    lista.appendChild(li);
+  });
+  // Atualiza hidden com URLs pipe-separadas
+  document.getElementById(hiddenId).value = arr.map(function(i){ return i.url; }).join('|');
+  // Atualiza zona de upload
+  var uz = document.getElementById(listId.replace('filesList','uz'));
+  if (arr.length > 0) {
+    uz.classList.add('compact');
+    uz.classList.remove('upload-err');
+    if (label) label.textContent = '+ Adicionar outro arquivo';
+  } else {
+    uz.classList.remove('compact');
+    if (label) label.textContent = labelId.includes('SouGov') ? 'Anexar Currículo SouGov (PDF)' : 'Clique para selecionar';
+  }
+}
+
+function _removerArquivo(slot, hiddenId, listId, labelId, idx) {
+  _uploads[slot].splice(idx, 1);
+  _renderFileList(slot, hiddenId, listId, labelId);
+}
+
+function _uploadArquivo(file, slot, hiddenId, listId, labelId, pasta, loadMsg) {
+  if (!isArqValido(file, slot === 'sougov')) { mostrarToast(slot === 'sougov' ? 'Selecione apenas arquivos PDF.' : 'Selecione PDF, JPG ou PNG.', 'aviso'); return; }
+  showLoading(loadMsg || 'Enviando documento...');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var b64 = e.target.result.split(',')[1];
+    var fn  = slot === 'sougov' ? 'salvarArquivoSouGov' : 'salvarArquivoGenerico';
+    var args = slot === 'sougov' ? [b64, file.name] : [b64, file.name, pasta];
+    google.script.run
+      .withSuccessHandler(function(url) {
+        _uploads[slot].push({ url: url, nome: file.name });
+        _renderFileList(slot, hiddenId, listId, labelId);
+        hideLoading();
+        mostrarToast('Arquivo enviado com sucesso!', 'sucesso', 3000);
+      })
+      .withFailureHandler(function(err) {
+        hideLoading();
+        mostrarToast('Erro ao enviar arquivo: ' + err.message, 'erro');
+      })
+      [fn].apply(null, args);
+  };
+  reader.readAsDataURL(file);
+}
+
+function inicializarUploadsConjuge() {
+  var ups = [
+    { fid:'fileUniao', slot:'uniao', uid:'urlComprovUniao', lid:'filesListUniao', lbid:'uzLabelUniao', pasta:'Comprovantes de Uniao - Recrutamento PRF' },
+    { fid:'fileCoab',  slot:'coab',  uid:'urlComprovCoab',  lid:'filesListCoab',  lbid:'uzLabelCoab',  pasta:'Comprovantes de Coabitacao - Recrutamento PRF' }
+  ];
+  ups.forEach(function(cfg) {
+    document.getElementById(cfg.fid).addEventListener('change', function() {
+      var file = this.files[0]; this.value = '';
+      if (!file) return;
+      _uploadArquivo(file, cfg.slot, cfg.uid, cfg.lid, cfg.lbid, cfg.pasta, 'Enviando documento...');
+    });
+  });
+  // SouGov
+  document.getElementById('inputSouGov').addEventListener('change', function() {
+    var file = this.files[0]; this.value = '';
+    if (!file) return;
+    _uploadArquivo(file, 'sougov', 'sougovUrl', 'filesListSouGov', 'uzLabelSouGov', null, 'Enviando currículo...');
+  });
+}
+
+function isArqValido(f, apenasPdf) {
+  if (apenasPdf) return f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+  return ['application/pdf','image/jpeg','image/jpg','image/png'].includes(f.type) ||
+         ['.pdf','.jpg','.jpeg','.png'].some(function(e){ return f.name.toLowerCase().endsWith(e); });
+}
+
+/* ═════════════════════════════════════════════════════
+   NAVEGAÇÃO / STEPS
+═════════════════════════════════════════════════════ */
+function irParaTela(n) {
+  if (n === 2 && !validarTela1()) return;
+  if (n === 3 && !validarTela2()) return;
+  if (n === 5) preencherTermo();
+
+  // Salva progresso silenciosamente ao avançar (não ao voltar)
+  if (n > _telaAtual) _salvarProgressoSilencioso();
+  _telaAtual = n;
+
+  document.querySelectorAll('.tela').forEach(function(t) { t.classList.remove('ativa'); });
+  document.getElementById('tela' + n).classList.add('ativa');
+  atualizarSteps(n);
+  // FAB visível apenas na tela 4 (BFI) e somente se não estiver travado
+  document.getElementById('fabDraft').classList.toggle('show', n === 4 && !bfiTravado);
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+/* ═════════════════════════════════════════════════════
+   SALVAR PROGRESSO — chamado a cada avanço de tela
+═════════════════════════════════════════════════════ */
+function _salvarProgressoSilencioso() {
+  var dados = {};
+  form.querySelectorAll(
+    'input:not([name*="[]"]):not([type="radio"]):not([type="checkbox"]):not([type="file"]),select,textarea'
+  ).forEach(function(el) { if (el.name) dados[el.name] = el.value; });
+  form.querySelectorAll('input[type="checkbox"]').forEach(function(el) {
+    if (el.name) dados[el.name] = el.checked;
+  });
+  dados['graduacao'] = pegarDinamicos('graduacao[]');
+  dados['pos']       = pegarDinamicos('pos[]');
+  dados['mestrado']  = pegarDinamicos('mestrado[]');
+  dados['doutorado'] = pegarDinamicos('doutorado[]');
+  dados['bfiResponses'] = coletarBFI();
+
+  google.script.run
+    .withSuccessHandler(function() { /* silencioso — sem feedback visual */ })
+    .withFailureHandler(function() { /* silencioso — não bloqueia o candidato */ })
+    .salvarProgressoInscricao(dados);
+}
+
+function atualizarSteps(ativa) {
+  for (var i = 1; i <= 5; i++) {
+    var sc = document.getElementById('sc' + i);
+    var sl = document.getElementById('sl' + i);
+    sc.className = 'step-circle'; sl.className = 'step-lbl';
+    if      (i < ativa)  { sc.classList.add('done');   sc.innerHTML = '✓'; sl.classList.add('done'); }
+    else if (i === ativa){ sc.classList.add('active'); sc.innerHTML = i;   sl.classList.add('active'); }
+    else                 { sc.innerHTML = i; }
+  }
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('ln' + i).className = 'step-line' + (i < ativa ? ' done' : '');
+  }
+}
+
+/* ═════════════════════════════════════════════════════
+   VALIDAÇÃO TELA 1
+═════════════════════════════════════════════════════ */
+function validarTela1() {
+  var ok = true;
+  function errar(el) { el.classList.add('invalid'); ok = false; }
+  function limpar(el){ el.classList.remove('invalid'); }
+
+  ['nome','matricula','cargo','ddd','telefone'].forEach(function(id) {
+    var el = document.getElementById(id);
+    (el && el.value.trim()) ? limpar(el) : errar(el);
+  });
+
+  var conjVal = document.getElementById('conjugeHidden').value;
+  if (!conjVal) { document.getElementById('ynGroup').classList.add('yn-group-err'); ok = false; }
+
+  if (conjVal === 'sim') {
+    ['conjugeNome','conjugeMatricula','tipoUniao','dataUniao',
+     'enderecoConjuge1','enderecoConjuge2','lotacaoConjuge1','lotacaoConjuge2'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el && el.value.trim() ? limpar(el) : errar(el);
+    });
+    var elCEmail = document.getElementById('conjugeEmail');
+    var cEmailVal = elCEmail.value.trim().toLowerCase();
+    if (!cEmailVal || !cEmailVal.endsWith('@prf.gov.br')) {
+      errar(elCEmail); ok = false;
+    } else if (cEmailVal === _emailCandidato) {
+      errar(elCEmail); ok = false;
+      mostrarToast('O e-mail do cônjuge não pode ser igual ao e-mail do candidato.', 'aviso');
+    } else { limpar(elCEmail); }
+    [{ slot:'uniao', zid:'uzUniao' },
+     { slot:'coab',  zid:'uzCoab'  }].forEach(function(u) {
+      var uz = document.getElementById(u.zid);
+      if (!_uploads[u.slot] || _uploads[u.slot].length === 0) { uz.classList.add('upload-err'); ok = false; }
+      else uz.classList.remove('upload-err');
+    });
+  }
+
+  if (!ok) {
+    var p = document.querySelector('.invalid, .upload-err');
+    if (p) p.scrollIntoView({ behavior:'smooth', block:'center' });
+    mostrarToast('Preencha todos os campos obrigatórios corretamente.', 'aviso');
+  }
+  return ok;
+}
+
+/* ═════════════════════════════════════════════════════
+   VALIDAÇÃO TELA 2
+═════════════════════════════════════════════════════ */
+function validarTela2() {
+  var ok = true;
+  function errar(el) { el.classList.add('invalid'); ok = false; }
+  function limpar(el){ el.classList.remove('invalid'); }
+
+  ['unidadeOportunidade','conhecimentoUnidade'].forEach(function(id) {
+    var el = document.getElementById(id);
+    (el && el.value.trim()) ? limpar(el) : errar(el);
+  });
+
+  if (!ok) {
+    var p = document.querySelector('.invalid');
+    if (p) p.scrollIntoView({ behavior:'smooth', block:'center' });
+    mostrarToast('Selecione a unidade de oportunidade e descreva seu conhecimento sobre ela.', 'aviso');
+  }
+  return ok;
+}
+
+/* ═════════════════════════════════════════════════════
+   AUTOCOMPLETE — INPUTS FIXOS (Lotação)
+═════════════════════════════════════════════════════ */
+function normalizar(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+function destacar(texto, query) {
+  if (!query) return document.createTextNode(texto);
+  var span = document.createElement('span');
+  var idx  = normalizar(texto).indexOf(normalizar(query));
+  if (idx === -1) { span.textContent = texto; return span; }
+  span.appendChild(document.createTextNode(texto.slice(0, idx)));
+  var mark = document.createElement('mark'); mark.textContent = texto.slice(idx, idx + query.length);
+  span.appendChild(mark);
+  span.appendChild(document.createTextNode(texto.slice(idx + query.length)));
+  return span;
+}
+
+// apenasLista=true → só aceita valores que existam na lista (sem digitação livre)
+function inicializarAutocompleteFixo(inputId, dropId, getOpcoes, apenasLista) {
+  var input    = document.getElementById(inputId);
+  var dropdown = document.getElementById(dropId);
+  var idx = -1;
+
+  function update() {
+    var q = normalizar(input.value);
+    // Pesquisa flexível: todas as palavras digitadas devem aparecer no item
+    var palavras = q.split(/\s+/).filter(Boolean);
+    var f = getOpcoes().filter(function(op) {
+      var norm = normalizar(op);
+      return palavras.every(function(p){ return norm.includes(p); });
+    });
+    dropdown.innerHTML = ''; idx = -1;
+    if (!f.length) { dropdown.style.display='none'; return; }
+    f.slice(0,16).forEach(function(op) {
+      var item = document.createElement('div'); item.className='ac-item';
+      item.appendChild(destacar(op, input.value));
+      item.addEventListener('mousedown', function(e) {
+        e.preventDefault(); input.value=op; input.classList.remove('invalid'); dropdown.style.display='none';
+      });
+      dropdown.appendChild(item);
+    });
+    dropdown.style.display='block';
+  }
+
+  input.addEventListener('input',  update);
+  input.addEventListener('focus',  update);
+  input.addEventListener('blur',   function() {
+    setTimeout(function() {
+      dropdown.style.display='none';
+      // Se restrito à lista, limpar se o valor não bate exatamente com nenhum item
+      if (apenasLista) {
+        var opts = getOpcoes();
+        var match = opts.some(function(op){ return op.toLowerCase() === input.value.toLowerCase(); });
+        if (!match) { input.value = ''; }
+      }
+    }, 150);
+  });
+  input.addEventListener('keydown', function(e) {
+    var its = dropdown.querySelectorAll('.ac-item'); if (!its.length) return;
+    if      (e.key==='ArrowDown')        { e.preventDefault(); idx=Math.min(idx+1,its.length-1); }
+    else if (e.key==='ArrowUp')          { e.preventDefault(); idx=Math.max(idx-1,0); }
+    else if (e.key==='Enter' && idx>=0)  { e.preventDefault(); input.value=its[idx].textContent; input.classList.remove('invalid'); dropdown.style.display='none'; return; }
+    else if (e.key==='Escape')           { dropdown.style.display='none'; return; }
+    its.forEach(function(it,i){ it.classList.toggle('sel', i===idx); });
+    if (idx>=0) its[idx].scrollIntoView({block:'nearest'});
+  });
+}
+
+/* ═════════════════════════════════════════════════════
+   AUTOCOMPLETE — CAMPOS DINÂMICOS (Formação)
+═════════════════════════════════════════════════════ */
+function getOpcoesPor(id) {
+  if (id==='graduacao') return function(){ return opcoesGraduacao; };
+  if (id==='pos')       return function(){ return opcoesPosGraduacao; };
+  return null;
+}
+
+function criarInputComAutocomplete(name, getOpcoes) {
+  var wrapper = document.createElement('div'); wrapper.className='ac-wrap';
+  var input   = document.createElement('input'); input.type='text'; input.name=name; input.placeholder='Digite para buscar ou cadastrar...';
+  var drop    = document.createElement('div');   drop.className='ac-drop';
+  var idx = -1;
+
+  function update() {
+    var q = normalizar(input.value);
+    var f = getOpcoes().filter(function(op){ return normalizar(op).includes(q); });
+    drop.innerHTML=''; idx=-1;
+    if (!f.length) { drop.style.display='none'; return; }
+    f.slice(0,12).forEach(function(op){
+      var item=document.createElement('div'); item.className='ac-item';
+      item.appendChild(destacar(op, input.value));
+      item.addEventListener('mousedown',function(e){ e.preventDefault(); input.value=op; drop.style.display='none'; });
+      drop.appendChild(item);
+    });
+    drop.style.display='block';
+  }
+  input.addEventListener('input',  update);
+  input.addEventListener('focus',  update);
+  input.addEventListener('blur',   function(){ setTimeout(function(){ drop.style.display='none'; },150); });
+  input.addEventListener('keydown', function(e){
+    var its=drop.querySelectorAll('.ac-item'); if(!its.length) return;
+    if      (e.key==='ArrowDown')        { e.preventDefault(); idx=Math.min(idx+1,its.length-1); }
+    else if (e.key==='ArrowUp')          { e.preventDefault(); idx=Math.max(idx-1,0); }
+    else if (e.key==='Enter' && idx>=0)  { e.preventDefault(); input.value=its[idx].textContent; drop.style.display='none'; return; }
+    else if (e.key==='Escape')           { drop.style.display='none'; return; }
+    its.forEach(function(it,i){ it.classList.toggle('sel',i===idx); });
+    if(idx>=0) its[idx].scrollIntoView({block:'nearest'});
+  });
+  wrapper.appendChild(input); wrapper.appendChild(drop);
+  return { wrapper, input };
+}
+
+function adicionarCampo(containerId) {
+  var container = document.getElementById('container-' + containerId);
+  var getOpcoes = getOpcoesPor(containerId);
+  var divItem   = document.createElement('div'); divItem.className='dyn-item';
+  var inputEl;
+  if (getOpcoes) {
+    var res = criarInputComAutocomplete(containerId+'[]', getOpcoes);
+    inputEl = res.input; divItem.appendChild(res.wrapper);
+  } else {
+    var inp = document.createElement('input'); inp.type='text'; inp.name=containerId+'[]'; inp.placeholder='Ex: Mestrado em Direito — UnB';
+    inputEl = inp; divItem.appendChild(inp);
+  }
+  var btnR = document.createElement('button'); btnR.type='button'; btnR.className='btn-rm';
+  btnR.innerHTML='<span class="material-icons">cancel</span>';
+  btnR.onclick = function() {
+    if (container.querySelectorAll('.dyn-item').length > 1) divItem.remove();
+    else inputEl.value = '';
+  };
+  divItem.appendChild(btnR);
+  container.appendChild(divItem);
+}
+
+/* ═════════════════════════════════════════════════════
+   POPULAR LISTAS
+═════════════════════════════════════════════════════ */
+function popularListas(listas) {
+  opcoesGraduacao            = (listas && listas.graduacoes)             || [];
+  opcoesPosGraduacao         = (listas && listas.posGraduacoes)          || [];
+  opcoesUorgs                = (listas && listas.uorgs)                  || [];
+  opcoesUnidadesOportunidade = (listas && listas.unidadesOportunidade)   || [];
+}
+
+/* ═════════════════════════════════════════════════════
+   BFI-44
+═════════════════════════════════════════════════════ */
+function gerarQuestionario() {
+  var container = document.getElementById('questionsContainer');
+  bfiQuestoes.forEach(function(q, i) {
+    var n = i + 1;
+    var card = document.createElement('div'); card.className='q-card'; card.id='qc'+n;
+    card.innerHTML =
+      '<div class="q-head"><div class="q-num">'+n+'</div>' +
+      '<div class="q-text"><span class="q-pref">Eu me vejo como alguém que... </span>'+q+'</div></div>' +
+      '<div class="likert-scale">' +
+      [1,2,3,4,5].map(function(v){
+        return '<label class="lk"><input type="radio" name="r'+n+'" value="'+v+'" onchange="onLikert('+n+')">' +
+               '<span class="lk-btn">'+v+'</span></label>';
+      }).join('') +
+      '</div>' +
+      '<div class="lk-labels"><span>Discordo<br>Fortemente</span><span>Concordo<br>Fortemente</span></div>';
+    container.appendChild(card);
+  });
+}
+
+function travarBFI() {
+  bfiTravado = true;
+  var tela4  = document.getElementById('tela4');
+  tela4.classList.add('bfi-travado');
+  document.getElementById('bfiTravadoBanner').style.display = 'flex';
+  // Habilitar o botão de avanço diretamente (já completou antes)
+  document.getElementById('btnProximo4').disabled = false;
+  // Atualizar contador visual
+  bfiRespondidas = 44;
+  document.getElementById('bfiCount').textContent = '44';
+  document.getElementById('bfiPfill').style.width = '100%';
+}
+
+function onLikert(n) {
+  if (bfiTravado) return;
+  var card = document.getElementById('qc'+n);
+  card.classList.add('answered'); card.classList.remove('erro');
+  bfiRespondidas = document.querySelectorAll('#tela4 input[type="radio"]:checked').length;
+  document.getElementById('bfiCount').textContent           = bfiRespondidas;
+  document.getElementById('bfiPfill').style.width           = (bfiRespondidas/44*100).toFixed(0)+'%';
+  verificarHabilitacao();
+}
+
+function verificarHabilitacao() {
+  var termo = document.getElementById('checkTermo').checked;
+  document.getElementById('btnProximo4').disabled = !(termo && bfiRespondidas === 44);
+}
+
+function coletarBFI() {
+  var r = [];
+  for (var i = 1; i <= 44; i++) {
+    var ch = document.querySelector('input[name="r'+i+'"]:checked');
+    r.push(ch ? parseInt(ch.value) : 0);
+  }
+  return r;
+}
+
+/* ═════════════════════════════════════════════════════
+   SALVAR RASCUNHO BFI (FAB)
+═════════════════════════════════════════════════════ */
+function salvarRascunho() {
+  var respondidas = coletarBFI().filter(function(v){ return v > 0; }).length;
+  if (respondidas === 0) { mostrarToast('Responda ao menos uma questão antes de salvar.', 'aviso'); return; }
+  showLoading('Salvando rascunho...');
+  google.script.run
+    .withSuccessHandler(function() {
+      hideLoading();
+      mostrarToast('Rascunho salvo! ' + respondidas + ' de 44 questões registradas.', 'sucesso', 4000);
+    })
+    .withFailureHandler(function(err) {
+      hideLoading();
+      mostrarToast('Erro ao salvar: ' + err.message, 'aviso');
+    })
+    .salvarRascunhoBFI(coletarBFI());
+}
+
+/* ═════════════════════════════════════════════════════
+   TELA 4 — TERMO DE COMPROMISSO
+═════════════════════════════════════════════════════ */
+function preencherTermo() {
+  var nome = (document.getElementById('nome').value || '[Nome]').toUpperCase();
+  var mat  = document.getElementById('matricula').value || '[Matrícula]';
+  var area = document.getElementById('unidadeOportunidade').value || '[Unidade de Oportunidade]';
+  document.getElementById('termoNome').textContent      = nome;
+  document.getElementById('termoMatricula').textContent = mat;
+  document.getElementById('termoArea').textContent      = area;
+  // Resetar estado do aceite ao entrar na tela
+  document.getElementById('checkAceite').checked         = false;
+  document.getElementById('btnAceitar').disabled          = true;
+  document.getElementById('assinaturaBloco').classList.remove('visivel');
+  document.getElementById('btnFinalizar').style.display  = 'none';
+  document.getElementById('btnVoltarTela4').style.display= 'flex';
+}
+
+function aceitarTermo() {
+  var nome  = (document.getElementById('nome').value || '').toUpperCase();
+  var cargo = document.getElementById('cargo').value || '';
+  var area  = document.getElementById('unidadeOportunidade').value || '';
+  var agora = new Date();
+  var dtStr = agora.toLocaleDateString('pt-BR') + ' às ' + agora.toLocaleTimeString('pt-BR');
+
+  document.getElementById('assinNome').textContent  = nome;
+  document.getElementById('assinCargo').textContent = cargo;
+  document.getElementById('assinArea').textContent  = area;
+  document.getElementById('assinData').textContent  = dtStr;
+  document.getElementById('assinaturaBloco').classList.add('visivel');
+
+  // Gravar dados da assinatura para envio
+  document.getElementById('dadosAssinatura').value = JSON.stringify({ nome, cargo, area, dataHora: dtStr });
+
+  // Esconder campos de aceite e mostrar finalizar
+  document.getElementById('termoAceiteDiv').style.display = 'none';
+  document.getElementById('btnAceitar').style.display     = 'none';
+  document.getElementById('btnFinalizar').style.display   = 'flex';
+  document.getElementById('btnVoltarTela4').style.display = 'none';
+
+  mostrarToast('✅ Termo aceito e assinatura registrada!', 'verde', 4000);
+}
+
+/* ═════════════════════════════════════════════════════
+   COLETA E ENVIO FINAL
+═════════════════════════════════════════════════════ */
+function finalizarInscricao() {
+  document.getElementById('btnFinalizar').disabled = true;
+  showLoading('Processando inscrição...');
+
+  var dados = {};
+  form.querySelectorAll('input:not([name*="[]"]):not([type="radio"]):not([type="checkbox"]):not([type="file"]),select,textarea').forEach(function(el) {
+    if (el.name) dados[el.name] = el.value;
+  });
+  form.querySelectorAll('input[type="checkbox"]').forEach(function(el) {
+    if (el.name) dados[el.name] = el.checked;
+  });
+  dados['graduacao']      = pegarDinamicos('graduacao[]');
+  dados['pos']            = pegarDinamicos('pos[]');
+  dados['mestrado']       = pegarDinamicos('mestrado[]');
+  dados['doutorado']      = pegarDinamicos('doutorado[]');
+  dados['bfiResponses']   = coletarBFI();
+  try { dados['assinatura'] = JSON.parse(document.getElementById('dadosAssinatura').value); } catch(e){}
+
+  google.script.run
+    .withSuccessHandler(onSucesso)
+    .withFailureHandler(onErro)
+    .processarInscricao(dados);
+}
+
+function pegarDinamicos(name) {
+  return Array.from(form.querySelectorAll('input[name="'+name+'"]')).map(function(i){ return i.value.trim(); }).filter(Boolean);
+}
+
+function onSucesso(result) {
+  hideLoading();
+  for (var i=1;i<=5;i++){
+    try{var sc=document.getElementById('sc'+i);if(sc){sc.className='step-circle done';sc.innerHTML='✓';}}catch(e){}
+    try{var sl=document.getElementById('sl'+i);if(sl){sl.className='step-lbl done';}}catch(e){}
+  }
+  for (var i=1;i<=4;i++){
+    try{var ln=document.getElementById('ln'+i);if(ln)ln.className='step-line done';}catch(e){}
+  }
+  document.getElementById('fabDraft').classList.remove('show');
+
+  // Verificar se houve aviso de PDF
+  var avisoHtml = '';
+  if (result && String(result).indexOf('aviso:') !== -1) {
+    avisoHtml = '<div class="s-detail" style="background:#fff3e0;border-left:4px solid #e65100;margin-top:12px;">' +
+      '<span class="material-icons" style="color:#e65100;">warning</span>' +
+      '<span style="color:#bf360c;">Os PDFs não puderam ser gerados automaticamente. ' +
+      'A equipe da DIPROM será notificada para gerar os documentos manualmente. ' +
+      'Sua inscrição <strong>está registrada</strong> normalmente.</span></div>';
+  }
+
+  document.querySelector('.content').innerHTML =
+    '<div class="success-wrap">' +
+    '<div class="success-icon"><span class="material-icons">check_circle</span></div>' +
+    '<h2>Inscrição Confirmada!</h2>' +
+    '<p>Seus dados, perfil comportamental e termo de compromisso foram registrados com sucesso.</p>' +
+    '<div class="success-details">' +
+    '<div class="s-detail"><span class="material-icons">email</span><span>Um e-mail de confirmação com seus <strong>resultados do BFI-44</strong> e o resumo da inscrição foi enviado para o seu <strong>@prf.gov.br</strong>.</span></div>' +
+    '<div class="s-detail"><span class="material-icons">edit_note</span><span>Caso precise alterar seus dados, acesse o formulário novamente. Suas respostas serão <strong>carregadas automaticamente</strong> para edição.</span></div>' +
+    '<div class="s-detail"><span class="material-icons">info</span><span>Guarde o e-mail recebido como comprovante de inscrição.</span></div>' +
+    avisoHtml +
+    '</div></div>';
+}
+
+function onErro(err) {
+  hideLoading();
+  document.getElementById('btnFinalizar').disabled = false;
+  mostrarToast('Erro ao enviar: ' + err.message + ' — Tente novamente ou contate o suporte.', 'erro', 6000);
+}
+
+function showLoading(txt) { loadingText.innerText = txt||'Carregando...'; loading.style.display='flex'; }
+function hideLoading()    { loading.style.display='none'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SISTEMA DE RECRUTAMENTOS</title>
+  <style>
+    :root {
+      --azul-prf:   #1d1a5b;
+      --amarelo-prf:#f2c200;
+      --cinza-fundo:#f5f6f7;
+      --azul-btn:   #2a5db0;
+      --verde:      #2e7d32;
+      --erro:       #c62828;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+    body { background-color:var(--cinza-fundo); }
+
+    /* ── Barra superior ── */
+    .topbar {
+      width:100%; background-color:var(--azul-prf); color:white;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 20px; flex-wrap:wrap;
+    }
+    .topbar-left { display:flex; align-items:center; gap:20px; }
+    .logo  { font-weight:bold; font-size:22px; color:var(--amarelo-prf); }
+    .title { font-size:18px; }
+
+    /* ── Container ── */
+    .container {
+      display:flex; justify-content:center; align-items:center;
+      min-height:calc(100vh - 70px); padding:20px 20px 50px;
+    }
+
+    /* ── Card ── */
+    .login-card {
+      background:white; padding:28px 26px; width:100%; max-width:380px;
+      border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.12);
+    }
+
+    .card-header {
+      display:flex; align-items:center; gap:10px;
+      margin-bottom:20px; padding-bottom:16px;
+      border-bottom:2px solid var(--cinza-fundo);
+    }
+    .card-icon {
+      width:40px; height:40px; border-radius:8px;
+      background:var(--azul-prf); display:flex;
+      align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .card-icon svg { width:20px; height:20px; fill:#fff; }
+    .card-header h2 { font-size:17px; color:#1a2332; font-weight:700; margin:0; }
+    .card-header small { display:block; font-size:12px; color:#8a96a3; margin-top:2px; }
+
+    /* ── Campos ── */
+    .field-label {
+      display:block; font-size:12px; font-weight:700;
+      color:var(--azul-prf); margin-bottom:6px; text-transform:uppercase; letter-spacing:.4px;
+    }
+    .field-label .obrig { color:var(--erro); }
+
+    input[type="email"], input[type="text"] {
+      width:100%; padding:11px 13px; border:1.5px solid #dde3ea;
+      border-radius:6px; font-size:14px; font-family:inherit;
+      background:#f8fafc; color:#1a2332; margin-bottom:14px;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    input:focus { outline:none; border-color:var(--azul-btn); box-shadow:0 0 0 3px rgba(42,93,176,.13); background:#fff; }
+    input.invalid { border-color:var(--erro); box-shadow:0 0 0 3px rgba(198,40,40,.10); }
+
+    .code-input {
+      font-size:26px !important; text-align:center !important;
+      letter-spacing:12px !important; font-weight:700 !important;
+    }
+
+    /* ── Botões ── */
+    .btn {
+      width:100%; padding:12px; border:none; border-radius:6px;
+      font-size:13px; font-weight:700; font-family:inherit;
+      text-transform:uppercase; letter-spacing:.4px;
+      cursor:pointer; transition:all .2s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-primary { background:var(--azul-btn); color:#fff; }
+    .btn-primary:hover { background:#1f4a8a; box-shadow:0 3px 12px rgba(42,93,176,.3); }
+    .btn-primary:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+    .btn-ghost {
+      background:none; border:1.5px solid #dde3ea; color:#555;
+      margin-top:8px; font-size:12px;
+    }
+    .btn-ghost:hover { background:#f0f0f0; }
+
+    /* ── Info box ── */
+    .info-box {
+      display:flex; gap:10px; align-items:flex-start;
+      padding:12px 14px; border-radius:6px; margin-bottom:16px; font-size:13px; line-height:1.55;
+    }
+    .info-box.verde  { background:#e8f5e9; border-left:4px solid #43a047; color:#1b5e20; }
+    .info-box.azul   { background:#e8f0fe; border-left:4px solid var(--azul-btn); color:#1a237e; }
+    .info-box svg    { flex-shrink:0; width:18px; height:18px; margin-top:1px; }
+
+    /* ── Mensagem de erro ── */
+    .msg-erro { font-size:12px; color:var(--erro); margin-top:-10px; margin-bottom:10px; display:none; }
+    .msg-erro.visivel { display:block; }
+
+    /* ── Footer ── */
+    .footer {
+      position:fixed; bottom:0; width:100%;
+      background-color:var(--amarelo-prf);
+      padding:5px 10px; font-size:12px;
+      display:flex; justify-content:space-between;
+    }
+
+    /* ── Steps indicadores ── */
+    .steps-2fa {
+      display:flex; align-items:center; gap:0; margin-bottom:20px;
+    }
+    .step-dot {
+      width:26px; height:26px; border-radius:50%; border:2px solid #dde3ea;
+      background:#f8fafc; color:#aaa; font-size:11px; font-weight:700;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      transition:all .3s;
+    }
+    .step-dot.ativo  { background:var(--azul-prf); border-color:var(--azul-prf); color:#fff; }
+    .step-dot.feito  { background:#43a047; border-color:#43a047; color:#fff; font-size:13px; }
+    .step-line-2fa { flex:1; height:2px; background:#dde3ea; transition:background .3s; }
+    .step-line-2fa.feito { background:#43a047; }
+    .step-lbl-2fa  { font-size:10px; color:#aaa; text-align:center; margin-top:3px; text-transform:uppercase; letter-spacing:.3px; }
+    .step-lbl-2fa.ativo { color:var(--azul-prf); }
+    .step-lbl-2fa.feito { color:#43a047; }
+    .step-item-2fa { display:flex; flex-direction:column; align-items:center; }
+
+    /* ── Destino ── */
+    .destino-boas-vindas {
+      text-align:center; margin-bottom:20px; padding-bottom:16px;
+      border-bottom:2px solid var(--cinza-fundo);
+    }
+    .destino-boas-vindas .bv-nome {
+      font-size:16px; font-weight:700; color:#1a2332; margin-bottom:2px;
+    }
+    .destino-boas-vindas .bv-sub {
+      font-size:12px; color:#8a96a3;
+    }
+    .destino-opcoes { display:flex; flex-direction:column; gap:12px; }
+    .btn-destino {
+      width:100%; padding:14px 16px; border:2px solid #dde3ea;
+      border-radius:8px; background:#fff; cursor:pointer;
+      display:flex; align-items:center; gap:14px;
+      text-align:left; transition:all .2s; font-family:inherit;
+    }
+    .btn-destino:hover { border-color:var(--azul-btn); background:#f0f4ff; box-shadow:0 2px 10px rgba(42,93,176,.12); }
+    .btn-destino .dest-icon {
+      width:44px; height:44px; border-radius:10px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .btn-destino .dest-icon.formulario { background:#e8f0fe; }
+    .btn-destino .dest-icon.painel     { background:#e8f5e9; }
+    .btn-destino .dest-info .dest-titulo {
+      font-size:14px; font-weight:700; color:#1a2332; display:block; margin-bottom:2px;
+    }
+    .btn-destino .dest-info .dest-sub {
+      font-size:12px; color:#8a96a3; display:block;
+    }
+    .badge-perfil {
+      margin-left:auto; flex-shrink:0; font-size:10px; font-weight:700;
+      padding:3px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:.4px;
+    }
+    .badge-perfil.admin    { background:#1d1a5b; color:#f2c200; }
+    .badge-perfil.avaliador{ background:#e8f5e9; color:#2e7d32; }
+
+    @media(max-width:600px) {
+      .topbar { flex-direction:column; align-items:flex-start; }
+      .container { height:auto; margin-top:20px; }
+    }
+
+    /* ── Toast central ── */
+    #toast-container {
+      position:fixed; inset:0; display:flex;
+      align-items:center; justify-content:center;
+      pointer-events:none; z-index:9999;
+    }
+    .toast {
+      display:flex; align-items:flex-start; gap:12px;
+      padding:16px 20px; border-radius:10px; max-width:340px; width:90%;
+      box-shadow:0 8px 32px rgba(0,0,0,.22);
+      font-size:14px; line-height:1.5; font-family:Arial,sans-serif;
+      pointer-events:auto;
+      animation:toastIn .25s ease;
+    }
+    .toast.saindo { animation:toastOut .3s ease forwards; }
+    .toast.erro   { background:#fff0f0; border-left:5px solid var(--erro);   color:#7f0000; }
+    .toast.aviso  { background:#fffde7; border-left:5px solid #f9a825;       color:#5f4000; }
+    .toast.sucesso{ background:#e8f5e9; border-left:5px solid var(--verde);  color:#1b5e20; }
+    .toast-icon { flex-shrink:0; width:22px; height:22px; margin-top:1px; }
+    .toast-msg  { flex:1; }
+    .toast-fechar {
+      flex-shrink:0; background:none; border:none; cursor:pointer;
+      font-size:18px; line-height:1; color:inherit; opacity:.55; padding:0 2px;
+    }
+    .toast-fechar:hover { opacity:1; }
+    @keyframes toastIn  { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
+    @keyframes toastOut { from{opacity:1;transform:scale(1)}   to{opacity:0;transform:scale(.88)} }
+
+    /* ── Divisor "ou" ── */
+    .divider-ou {
+      display:flex; align-items:center; gap:10px;
+      margin:14px 0; color:#b0b8c4; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    }
+    .divider-ou::before, .divider-ou::after { content:''; flex:1; height:1px; background:#dde3ea; }
+
+    /* ── Caixa código existente ── */
+    .box-codigo-existente {
+      border:1.5px solid #dde3ea; border-radius:8px;
+      padding:14px 14px 10px; margin-bottom:14px; background:#f8fafc;
+    }
+    .box-codigo-existente .field-label { margin-bottom:6px; }
+    .box-codigo-existente input { margin-bottom:10px; background:#fff; }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">PRF</div>
+      <div class="title">Recrutamentos Internos</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="login-card">
+
+      <!-- Header do card -->
+      <div class="card-header">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+        </div>
+        <div>
+          <h2>Acesso Seguro</h2>
+          <small>Verificação em duas etapas (2FA)</small>
+        </div>
+      </div>
+
+      <!-- Indicadores de progresso -->
+      <div class="steps-2fa" id="steps-container">
+        <div class="step-item-2fa">
+          <div class="step-dot ativo" id="dot1">1</div>
+          <div class="step-lbl-2fa ativo" id="lbl1">E-mail</div>
+        </div>
+        <div class="step-line-2fa" id="line1"></div>
+        <div class="step-item-2fa">
+          <div class="step-dot" id="dot2">2</div>
+          <div class="step-lbl-2fa" id="lbl2">Código</div>
+        </div>
+        <div class="step-line-2fa" id="line2" style="display:none;"></div>
+        <div class="step-item-2fa" id="step3item" style="display:none;">
+          <div class="step-dot" id="dot3">3</div>
+          <div class="step-lbl-2fa" id="lbl3">Destino</div>
+        </div>
+      </div>
+
+      <!-- ── ETAPA 1: E-mail ── -->
+      <div id="etapaEmail">
+        <div class="info-box azul">
+          <svg viewBox="0 0 24 24" fill="#1a237e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+          <span>Informe seu e-mail <strong>@prf.gov.br</strong>. Se já tiver um código válido, insira-o diretamente. Caso contrário, solicite um novo.</span>
+        </div>
+
+        <label class="field-label" for="email">E-mail Institucional <span class="obrig">*</span></label>
+        <input type="email" id="email" placeholder="seu.nome@prf.gov.br"
+               oninput="validarEmail()" onkeydown="if(event.key==='Enter') enviarCodigo2FA()">
+        <div class="msg-erro" id="erroEmail">Use o e-mail institucional @prf.gov.br</div>
+
+        <!-- Seção código existente — aparece quando e-mail é válido -->
+        <div id="secaoCodigoExistente" style="display:none;">
+          <div class="box-codigo-existente">
+            <label class="field-label" for="codigoExistente">Já tenho um código <span class="obrig">*</span></label>
+            <input type="text" id="codigoExistente" placeholder="000000" maxlength="6"
+                   inputmode="numeric" class="code-input"
+                   oninput="this.value=this.value.replace(/\D/,'')"
+                   onkeydown="if(event.key==='Enter') tentarCodigoExistente()">
+            <div class="msg-erro" id="erroCodigoExistente"></div>
+            <button class="btn btn-primary" id="btnUsarCodigo" onclick="tentarCodigoExistente()">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              Prosseguir
+            </button>
+          </div>
+          <div class="divider-ou"><span>ou</span></div>
+        </div>
+
+        <button class="btn btn-primary" id="btnEnviar" onclick="enviarCodigo2FA()" disabled>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          Solicitar novo código 2FA
+        </button>
+      </div>
+
+      <!-- ── ETAPA 2: Código ── -->
+      <div id="etapaCodigo" style="display:none;">
+        <div class="info-box verde">
+          <svg viewBox="0 0 24 24" fill="#2e7d32"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          <span>Código enviado para <strong id="emailExibido"></strong>.<br>Verifique sua caixa de entrada e insira o código abaixo. <strong>Válido por 24 horas.</strong></span>
+        </div>
+
+        <label class="field-label" for="codigoInput">Código de Verificação <span class="obrig">*</span></label>
+        <input type="text" id="codigoInput" placeholder="000000" maxlength="6"
+               inputmode="numeric" class="code-input"
+               oninput="this.value=this.value.replace(/\D/,'')"
+               onkeydown="if(event.key==='Enter') verificarCodigo()">
+        <div class="msg-erro" id="erroCodigo">Código incorreto. Verifique e tente novamente.</div>
+
+        <button class="btn btn-primary" id="btnProsseguir" onclick="verificarCodigo()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          Prosseguir
+        </button>
+        <button class="btn btn-ghost" onclick="voltarEmail()">
+          ← Usar outro e-mail
+        </button>
+      </div>
+
+      <!-- ── ETAPA 3: Destino (apenas para usuários com acesso ao Painel) ── -->
+      <div id="etapaDestino" style="display:none;">
+        <div class="destino-boas-vindas">
+          <div class="bv-nome" id="destinoNome">Bem-vindo!</div>
+          <div class="bv-sub">Selecione o sistema que deseja acessar</div>
+        </div>
+        <div class="destino-opcoes">
+          <button class="btn-destino" id="btnAcessarFormulario" onclick="irPara('form')">
+            <div class="dest-icon formulario">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#2a5db0"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            </div>
+            <div class="dest-info">
+              <span class="dest-titulo">Formulário de Inscrição</span>
+              <span class="dest-sub">Candidatura para vagas internas</span>
+            </div>
+          </button>
+          <button class="btn-destino" id="btnAcessarPainel" onclick="irPara('painel')">
+            <div class="dest-icon painel">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#2e7d32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            </div>
+            <div class="dest-info">
+              <span class="dest-titulo">Painel de Avaliação</span>
+              <span class="dest-sub">Gestão e avaliação de candidatos</span>
+            </div>
+            <span class="badge-perfil" id="badgePerfil">—</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <div class="footer">
+    <div>Divisão de Provimento e Movimentações - DIPROM/DGP</div>
+    <div id="versao"></div>
+  </div>
+
+  <script>
+    // ── Toast central ──
+    function mostrarToast(mensagem, tipo, duracao) {
+      tipo     = tipo     || 'erro';
+      duracao  = duracao  || 4000;
+      var icons = {
+        erro:    '<svg class="toast-icon" viewBox="0 0 24 24"><path fill="#c62828" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
+        aviso:   '<svg class="toast-icon" viewBox="0 0 24 24"><path fill="#f9a825" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>',
+        sucesso: '<svg class="toast-icon" viewBox="0 0 24 24"><path fill="#2e7d32" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z"/></svg>'
+      };
+      var el = document.createElement('div');
+      el.className = 'toast ' + tipo;
+      el.innerHTML = (icons[tipo] || icons.erro)
+        + '<span class="toast-msg">' + mensagem + '</span>'
+        + '<button class="toast-fechar" onclick="this.parentNode.remove()">×</button>';
+      var container = document.getElementById('toast-container');
+      container.innerHTML = '';
+      container.appendChild(el);
+      setTimeout(function() {
+        if (!el.parentNode) return;
+        el.classList.add('saindo');
+        setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
+      }, duracao);
+    }
+
+    // ── Versão ──
+    var agora = new Date();
+    var dt = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('versao').innerText = 'Versão: ' + dt;
+
+    // ── Estado 2FA ──
+    var _emailConfirm = null;
+    var _urlForm      = null;
+    var _urlPainel    = null;
+
+    // ── Validação do campo e-mail ──
+    function validarEmail() {
+      var email = document.getElementById('email').value.trim();
+      var botao = document.getElementById('btnEnviar');
+      var erro  = document.getElementById('erroEmail');
+      var input = document.getElementById('email');
+      var secao = document.getElementById('secaoCodigoExistente');
+
+      if (email.toLowerCase().endsWith('@prf.gov.br')) {
+        botao.disabled = false;
+        input.classList.remove('invalid');
+        erro.classList.remove('visivel');
+        secao.style.display = '';
+      } else {
+        botao.disabled = true;
+        secao.style.display = 'none';
+        document.getElementById('codigoExistente').value = '';
+        document.getElementById('erroCodigoExistente').classList.remove('visivel');
+        document.getElementById('codigoExistente').classList.remove('invalid');
+        if (email.length > 5) {
+          input.classList.add('invalid');
+          erro.classList.add('visivel');
+        } else {
+          input.classList.remove('invalid');
+          erro.classList.remove('visivel');
+        }
+      }
+    }
+
+    // ── Helper: avança para etapa de código após envio bem-sucedido ──
+    function _mostrarEtapaCodigo(email) {
+      document.getElementById('emailExibido').textContent = email;
+      document.getElementById('etapaEmail').style.display  = 'none';
+      document.getElementById('etapaCodigo').style.display = 'block';
+      document.getElementById('codigoInput').focus();
+      document.getElementById('dot1').className   = 'step-dot feito';
+      document.getElementById('dot1').textContent = '✓';
+      document.getElementById('lbl1').className   = 'step-lbl-2fa feito';
+      document.getElementById('line1').className  = 'step-line-2fa feito';
+      document.getElementById('dot2').className   = 'step-dot ativo';
+      document.getElementById('lbl2').className   = 'step-lbl-2fa ativo';
+    }
+
+    // ── Helper: processa resposta do servidor após código válido ──
+    function _processarRespostaVerificacao(res, onErro) {
+      if (typeof res === 'string') { window.top.location.href = res; return; }
+      if (!res || typeof res !== 'object') { onErro('Código incorreto. Verifique e tente novamente.'); return; }
+
+      _urlForm   = res.formUrl   || null;
+      _urlPainel = res.painelUrl || null;
+
+      document.getElementById('dot2').className   = 'step-dot feito';
+      document.getElementById('dot2').textContent = '✓';
+      document.getElementById('lbl2').className   = 'step-lbl-2fa feito';
+
+      if (res.painelUrl) {
+        document.getElementById('line2').style.display     = '';
+        document.getElementById('step3item').style.display = '';
+        document.getElementById('dot3').className  = 'step-dot ativo';
+        document.getElementById('lbl3').className  = 'step-lbl-2fa ativo';
+        var nome = res.nome || _emailConfirm;
+        document.getElementById('destinoNome').textContent = 'Olá, ' + nome.split(' ')[0] + '!';
+        var badgeEl = document.getElementById('badgePerfil');
+        var isAdmin = res.perfil === 'ADMINISTRADOR';
+        badgeEl.textContent = res.perfil || '';
+        badgeEl.className   = 'badge-perfil ' + (isAdmin ? 'admin' : 'avaliador');
+        document.getElementById('etapaCodigo').style.display  = 'none';
+        document.getElementById('etapaDestino').style.display = 'block';
+      } else if (res.formUrl) {
+        window.top.location.href = res.formUrl;
+      } else {
+        onErro(null); // sem URLs — erro inesperado
+        mostrarToast('Erro inesperado na resposta do servidor. Tente novamente.', 'erro');
+      }
+    }
+
+    // ── Etapa 1: enviar novo código (gerado e salvo pelo servidor) ──
+    function enviarCodigo2FA() {
+      var email = document.getElementById('email').value.trim();
+      if (!email.toLowerCase().endsWith('@prf.gov.br')) return;
+
+      _emailConfirm = email;
+      var botao = document.getElementById('btnEnviar');
+      var btnLabel = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Solicitar novo código 2FA';
+      botao.disabled    = true;
+      botao.textContent = 'Enviando...';
+
+      google.script.run
+        .withSuccessHandler(function() {
+          botao.disabled  = false;
+          botao.innerHTML = btnLabel;
+          _mostrarEtapaCodigo(email);
+        })
+        .withFailureHandler(function(err) {
+          botao.disabled  = false;
+          botao.innerHTML = btnLabel;
+          mostrarToast('Erro ao enviar o código: ' + (err.message || 'tente novamente.'));
+        })
+        .enviarEmail2FA(email);
+    }
+
+    // ── Etapa 1 (caminho alternativo): tentar código existente ──
+    function tentarCodigoExistente() {
+      var email  = document.getElementById('email').value.trim();
+      var codigo = document.getElementById('codigoExistente').value.trim();
+      var elCod  = document.getElementById('codigoExistente');
+      var elErr  = document.getElementById('erroCodigoExistente');
+      var btnV   = document.getElementById('btnUsarCodigo');
+      var btnLabel = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Prosseguir';
+
+      if (codigo.length !== 6) {
+        elCod.classList.add('invalid');
+        elErr.textContent = 'Insira o código de 6 dígitos.';
+        elErr.classList.add('visivel');
+        return;
+      }
+      elCod.classList.remove('invalid');
+      elErr.classList.remove('visivel');
+      btnV.disabled = true;
+      btnV.textContent = 'Verificando...';
+      _emailConfirm = email;
+
+      function resetBtn() { btnV.disabled = false; btnV.innerHTML = btnLabel; }
+
+      // Se código inválido → gera e envia novo automaticamente
+      function enviarNovoAposInvalido() {
+        resetBtn();
+        var botaoEnviar = document.getElementById('btnEnviar');
+        botaoEnviar.disabled    = true;
+        botaoEnviar.textContent = 'Enviando...';
+        var btnEnviarLabel = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Solicitar novo código 2FA';
+        google.script.run
+          .withSuccessHandler(function() {
+            botaoEnviar.disabled  = false;
+            botaoEnviar.innerHTML = btnEnviarLabel;
+            _mostrarEtapaCodigo(email);
+          })
+          .withFailureHandler(function(err) {
+            botaoEnviar.disabled  = false;
+            botaoEnviar.innerHTML = btnEnviarLabel;
+            mostrarToast('Erro ao enviar o código: ' + (err.message || 'tente novamente.'));
+          })
+          .enviarEmail2FA(email);
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          // Código inválido → o servidor retorna null ou objeto sem URLs
+          var invalido = !res
+            || (typeof res === 'object' && !res.formUrl && !res.painelUrl)
+            || (typeof res !== 'string' && typeof res !== 'object');
+          if (invalido) {
+            enviarNovoAposInvalido();
+            return;
+          }
+          resetBtn();
+          _processarRespostaVerificacao(res, function() { enviarNovoAposInvalido(); });
+        })
+        .withFailureHandler(function() {
+          enviarNovoAposInvalido();
+        })
+        .verificarCodigo2FA(email, codigo);
+    }
+
+    // ── Etapa 2: verificar código no servidor e redirecionar ──
+    function verificarCodigo() {
+      var codigo   = document.getElementById('codigoInput').value.trim();
+      var elCodigo = document.getElementById('codigoInput');
+      var elErro   = document.getElementById('erroCodigo');
+
+      if (codigo.length !== 6) {
+        elCodigo.classList.add('invalid');
+        elErro.textContent = 'Insira o código de 6 dígitos.';
+        elErro.classList.add('visivel');
+        return;
+      }
+      elCodigo.classList.remove('invalid');
+      elErro.classList.remove('visivel');
+
+      var btnP = document.getElementById('btnProsseguir');
+      var btnLabel = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Prosseguir';
+      btnP.disabled    = true;
+      btnP.textContent = 'Verificando...';
+
+      function resetBtn() { btnP.disabled = false; btnP.innerHTML = btnLabel; }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          _processarRespostaVerificacao(res, function(msg) {
+            resetBtn();
+            elCodigo.classList.add('invalid');
+            elErro.textContent = msg || 'Código incorreto. Verifique e tente novamente.';
+            elErro.classList.add('visivel');
+          });
+        })
+        .withFailureHandler(function(err) {
+          resetBtn();
+          elCodigo.classList.add('invalid');
+          elErro.textContent = err.message || 'Código incorreto. Verifique e tente novamente.';
+          elErro.classList.add('visivel');
+        })
+        .verificarCodigo2FA(_emailConfirm, codigo);
+    }
+
+    // ── Navegar para destino escolhido ──
+    function irPara(destino) {
+      var url = destino === 'painel' ? _urlPainel : _urlForm;
+      if (url) window.top.location.href = url;
+    }
+
+    // ── Voltar para etapa do e-mail ──
+    function voltarEmail() {
+      document.getElementById('etapaCodigo').style.display  = 'none';
+      document.getElementById('etapaDestino').style.display = 'none';
+      document.getElementById('etapaEmail').style.display   = 'block';
+      document.getElementById('codigoInput').value = '';
+      document.getElementById('codigoInput').classList.remove('invalid');
+      document.getElementById('erroCodigo').classList.remove('visivel');
+      document.getElementById('codigoExistente').value = '';
+      document.getElementById('codigoExistente').classList.remove('invalid');
+      document.getElementById('erroCodigoExistente').classList.remove('visivel');
+      // Mostra seção de código existente se e-mail ainda está preenchido
+      var email = document.getElementById('email').value.trim();
+      document.getElementById('secaoCodigoExistente').style.display = email.toLowerCase().endsWith('@prf.gov.br') ? '' : 'none';
+      _urlForm   = null;
+      _urlPainel = null;
+      // Reset passo 1
+      document.getElementById('dot1').className   = 'step-dot ativo';
+      document.getElementById('dot1').textContent = '1';
+      document.getElementById('lbl1').className   = 'step-lbl-2fa ativo';
+      document.getElementById('line1').className  = 'step-line-2fa';
+      // Reset passo 2
+      document.getElementById('dot2').className   = 'step-dot';
+      document.getElementById('dot2').textContent = '2';
+      document.getElementById('lbl2').className   = 'step-lbl-2fa';
+      // Esconde passo 3
+      document.getElementById('line2').style.display     = 'none';
+      document.getElementById('step3item').style.display = 'none';
+      document.getElementById('dot3').className  = 'step-dot';
+      document.getElementById('lbl3').className  = 'step-lbl-2fa';
+    }
+  </script>
+
+</body>
+</html>
