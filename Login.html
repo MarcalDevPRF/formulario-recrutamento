@@ -319,7 +319,7 @@
         </button>
       </div>
 
-      <!-- ── ETAPA 3: Destino (apenas para usuários com acesso ao Painel) ── -->
+      <!-- ── ETAPA 3: Destino (usuários com acesso ao Painel e/ou Votação) ── -->
       <div id="etapaDestino" style="display:none;">
         <div class="destino-boas-vindas">
           <div class="bv-nome" id="destinoNome">Bem-vindo!</div>
@@ -335,7 +335,7 @@
               <span class="dest-sub">Candidatura para vagas internas</span>
             </div>
           </button>
-          <button class="btn-destino" id="btnAcessarPainel" onclick="irPara('painel')">
+          <button class="btn-destino" id="btnAcessarPainel" onclick="irPara('painel')" style="display:none;">
             <div class="dest-icon painel">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="#2e7d32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
             </div>
@@ -344,6 +344,16 @@
               <span class="dest-sub">Gestão e avaliação de candidatos</span>
             </div>
             <span class="badge-perfil" id="badgePerfil">—</span>
+          </button>
+          <button class="btn-destino" id="btnAcessarVotacao" onclick="irPara('votacao')" style="display:none;">
+            <div class="dest-icon" style="background:#fce4ec;">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#c62828"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <div class="dest-info">
+              <span class="dest-titulo">Votação Final</span>
+              <span class="dest-sub">Avaliação de colegas pelos pares</span>
+            </div>
+            <span class="badge-perfil avaliador" id="badgeVotador" style="background:#fce4ec;color:#c62828;">VOTADOR</span>
           </button>
         </div>
       </div>
@@ -392,6 +402,7 @@
     var _emailConfirm = null;
     var _urlForm      = null;
     var _urlPainel    = null;
+    var _urlVotacao   = null;
 
     // ── Validação do campo e-mail ──
     function validarEmail() {
@@ -441,30 +452,38 @@
       if (typeof res === 'string') { window.top.location.href = res; return; }
       if (!res || typeof res !== 'object') { onErro('Código incorreto. Verifique e tente novamente.'); return; }
 
-      _urlForm   = res.formUrl   || null;
-      _urlPainel = res.painelUrl || null;
+      _urlForm    = res.formUrl    || null;
+      _urlPainel  = res.painelUrl  || null;
+      _urlVotacao = res.votacaoUrl || null;
 
       document.getElementById('dot2').className   = 'step-dot feito';
       document.getElementById('dot2').textContent = '✓';
       document.getElementById('lbl2').className   = 'step-lbl-2fa feito';
 
-      if (res.painelUrl) {
+      var temDestino = res.painelUrl || res.votacaoUrl;
+      if (temDestino) {
         document.getElementById('line2').style.display     = '';
         document.getElementById('step3item').style.display = '';
         document.getElementById('dot3').className  = 'step-dot ativo';
         document.getElementById('lbl3').className  = 'step-lbl-2fa ativo';
         var nome = res.nome || _emailConfirm;
         document.getElementById('destinoNome').textContent = 'Olá, ' + nome.split(' ')[0] + '!';
-        var badgeEl = document.getElementById('badgePerfil');
-        var isAdmin = res.perfil === 'ADMINISTRADOR';
-        badgeEl.textContent = res.perfil || '';
-        badgeEl.className   = 'badge-perfil ' + (isAdmin ? 'admin' : 'avaliador');
+        if (res.painelUrl) {
+          var badgeEl = document.getElementById('badgePerfil');
+          var isAdmin = res.perfil === 'ADMINISTRADOR';
+          badgeEl.textContent = res.perfil || '';
+          badgeEl.className   = 'badge-perfil ' + (isAdmin ? 'admin' : 'avaliador');
+          document.getElementById('btnAcessarPainel').style.display = '';
+        }
+        if (res.votacaoUrl) {
+          document.getElementById('btnAcessarVotacao').style.display = '';
+        }
         document.getElementById('etapaCodigo').style.display  = 'none';
         document.getElementById('etapaDestino').style.display = 'block';
       } else if (res.formUrl) {
         window.top.location.href = res.formUrl;
       } else {
-        onErro(null); // sem URLs — erro inesperado
+        onErro(null);
         mostrarToast('Erro inesperado na resposta do servidor. Tente novamente.', 'erro');
       }
     }
@@ -599,7 +618,9 @@
 
     // ── Navegar para destino escolhido ──
     function irPara(destino) {
-      var url = destino === 'painel' ? _urlPainel : _urlForm;
+      var url = destino === 'painel'   ? _urlPainel
+              : destino === 'votacao'  ? _urlVotacao
+              : _urlForm;
       if (url) window.top.location.href = url;
     }
 
@@ -617,8 +638,11 @@
       // Mostra seção de código existente se e-mail ainda está preenchido
       var email = document.getElementById('email').value.trim();
       document.getElementById('secaoCodigoExistente').style.display = email.toLowerCase().endsWith('@prf.gov.br') ? '' : 'none';
-      _urlForm   = null;
-      _urlPainel = null;
+      _urlForm    = null;
+      _urlPainel  = null;
+      _urlVotacao = null;
+      document.getElementById('btnAcessarPainel').style.display  = 'none';
+      document.getElementById('btnAcessarVotacao').style.display = 'none';
       // Reset passo 1
       document.getElementById('dot1').className   = 'step-dot ativo';
       document.getElementById('dot1').textContent = '1';

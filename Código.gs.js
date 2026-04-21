@@ -21,6 +21,15 @@ const HEADERS_RESPOSTAS = [
   'PDF Respostas','PDF Termo','PDF Concordância Cônjuge'
 ];
 
+// ─── Votação — constantes ─────────────────────────────────────────
+const SHEET_VOTOS    = 'votos';
+const HEADERS_VOTOS  = [
+  'Data/Hora','Email Eleitor','Nome Eleitor',
+  'Email Candidato','Nome Candidato','Matrícula Candidato',
+  'Confiança','Lealdade','Amizade','Ego','Família',
+  'Média','Comentário'
+];
+
 // ─── Web App ─────────────────────────────────────────────────────
 function doGet(e) {
   var params = (e && e.parameter) ? e.parameter : {};
@@ -35,6 +44,14 @@ function doGet(e) {
     return HtmlService.createTemplateFromFile('Painel')
       .evaluate()
       .setTitle('Painel de Avaliação — PRF')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  if (params.pagina === 'votacao') {
+    return HtmlService.createTemplateFromFile('Votacao')
+      .evaluate()
+      .setTitle('Votação Final — PRF')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
@@ -183,15 +200,32 @@ function verificarCodigo2FA(email, codigoDigitado) {
     sh.getRange(i + 1, 5).setValue(fmtDt(agora));
     sh.getRange(i + 1, 6).setValue('Usado');
 
-    const baseUrl  = ScriptApp.getService().getUrl();
-    const formUrl  = baseUrl + '?pagina=formulario';
+    const baseUrl    = ScriptApp.getService().getUrl();
+    const formUrl    = baseUrl + '?pagina=formulario';
     const painelInfo = _checarPerfilPainel(email);
 
+    // Verifica perfil de votador (VOTADOR ou ADMINISTRADOR na aba credenciais)
+    let votacaoUrl = null;
+    try {
+      const cRows = _getCredenciaisSheet().getDataRange().getValues();
+      for (let j = cRows.length - 1; j >= 1; j--) {
+        const ce = String(cRows[j][0] || '').toLowerCase();
+        const cp = String(cRows[j][2] || '').toUpperCase();
+        const cs = String(cRows[j][5] || '').toLowerCase();
+        if (ce === email.toLowerCase() && cs === 'ativo'
+            && (cp === 'VOTADOR' || cp === 'ADMINISTRADOR')) {
+          votacaoUrl = baseUrl + '?pagina=votacao';
+          break;
+        }
+      }
+    } catch(e) { /* aba pode não existir ainda */ }
+
     return {
-      formUrl:   formUrl,
-      painelUrl: painelInfo ? (baseUrl + '?pagina=painel') : null,
-      perfil:    painelInfo ? painelInfo.perfil : null,
-      nome:      painelInfo ? painelInfo.nome   : null
+      formUrl:    formUrl,
+      painelUrl:  painelInfo  ? (baseUrl + '?pagina=painel') : null,
+      votacaoUrl: votacaoUrl,
+      perfil:     painelInfo  ? painelInfo.perfil : null,
+      nome:       painelInfo  ? painelInfo.nome   : (votacaoUrl ? email.split('@')[0] : null)
     };
   }
 
@@ -2403,4 +2437,130 @@ function excluirCredencial(email) {
     }
   }
   throw new Error('Usuário não encontrado.');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  VOTAÇÃO FINAL
+// ════════════════════════════════════════════════════════════════
+
+// ─── Verifica se o usuário tem perfil VOTADOR ou ADMINISTRADOR ────
+function _verificarAcessoVotacao() {
+  const email = Session.getActiveUser().getEmail();
+  if (!email || !email.toLowerCase().endsWith('@prf.gov.br')) {
+    throw new Error('Acesso restrito a servidores @prf.gov.br.');
+  }
+  const rows = _getCredenciaisSheet().getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const e = String(rows[i][0] || '').toLowerCase();
+    const p = String(rows[i][2] || '').toUpperCase();
+    const s = String(rows[i][5] || '').toLowerCase();
+    if (e === email.toLowerCase() && s === 'ativo'
+        && (p === 'VOTADOR' || p === 'ADMINISTRADOR')) {
+      return { email, nome: String(rows[i][1] || email), perfil: p };
+    }
+  }
+  throw new Error('Você não tem permissão para acessar a votação. Solicite acesso ao administrador.');
+}
+
+// ─── Inicializa a tela de votação ─────────────────────────────────
+function inicializarVotacao() {
+  const usuario = _verificarAcessoVotacao();
+  const ss      = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // Carrega candidatos com status "Inscrito"
+  const sheetResp = ss.getSheetByName('respostas');
+  const candidatos = [];
+  if (sheetResp && sheetResp.getLastRow() > 1) {
+    const lastRow = sheetResp.getLastRow();
+    const dados   = sheetResp.getRange(1, 1, lastRow, 33).getValues().slice(1);
+    dados.forEach(function(r) {
+      if (String(r[32] || '').toLowerCase() === 'inscrito' && String(r[1] || '').trim()) {
+        candidatos.push({
+          email:     String(r[1] || ''),
+          nome:      String(r[2] || ''),
+          matricula: String(r[3] || ''),
+          unidade:   String(r[5] || '')
+        });
+      }
+    });
+  }
+
+  // Verifica quais candidatos este eleitor já votou
+  const jaVotei = [];
+  const sheetVotos = ss.getSheetByName(SHEET_VOTOS);
+  if (sheetVotos && sheetVotos.getLastRow() > 1) {
+    sheetVotos.getDataRange().getValues().slice(1).forEach(function(r) {
+      if (String(r[1] || '').toLowerCase() === usuario.email.toLowerCase()) {
+        jaVotei.push(String(r[3] || '').toLowerCase());
+      }
+    });
+  }
+
+  return { eleitor: usuario.nome || usuario.email, candidatos, jaVotei };
+}
+
+// ─── Salva o voto de um eleitor para um candidato ─────────────────
+function salvarVoto(emailCandidato, notas, comentario) {
+  const usuario = _verificarAcessoVotacao();
+  const ss      = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // Garante a aba "votos"
+  let sheetVotos = ss.getSheetByName(SHEET_VOTOS);
+  if (!sheetVotos) {
+    sheetVotos = ss.insertSheet(SHEET_VOTOS);
+    sheetVotos.appendRow(HEADERS_VOTOS);
+    sheetVotos.setFrozenRows(1);
+    sheetVotos.getRange('A1:M1')
+      .setFontWeight('bold')
+      .setBackground('#1d1a5b')
+      .setFontColor('#ffffff');
+  }
+
+  // Verifica duplicidade
+  if (sheetVotos.getLastRow() > 1) {
+    const rows = sheetVotos.getDataRange().getValues().slice(1);
+    for (const r of rows) {
+      if (String(r[1] || '').toLowerCase() === usuario.email.toLowerCase() &&
+          String(r[3] || '').toLowerCase() === emailCandidato.toLowerCase()) {
+        throw new Error('Você já registrou seu voto para este candidato.');
+      }
+    }
+  }
+
+  // Busca dados do candidato na aba "respostas"
+  let nomeC = '', matriculaC = '';
+  const sheetResp = ss.getSheetByName('respostas');
+  if (sheetResp && sheetResp.getLastRow() > 1) {
+    const rows = sheetResp.getRange(1, 1, sheetResp.getLastRow(), 4).getValues().slice(1);
+    for (const r of rows) {
+      if (String(r[1] || '').toLowerCase() === emailCandidato.toLowerCase()) {
+        nomeC      = String(r[2] || '');
+        matriculaC = String(r[3] || '');
+        break;
+      }
+    }
+  }
+
+  // Calcula média
+  const soma  = (notas.confianca || 0) + (notas.lealdade || 0) + (notas.amizade || 0)
+              + (notas.ego || 0)       + (notas.familia  || 0);
+  const media = parseFloat((soma / 5).toFixed(2));
+
+  sheetVotos.appendRow([
+    new Date(),
+    usuario.email,
+    usuario.nome || usuario.email,
+    emailCandidato,
+    nomeC,
+    matriculaC,
+    notas.confianca  || 0,
+    notas.lealdade   || 0,
+    notas.amizade    || 0,
+    notas.ego        || 0,
+    notas.familia    || 0,
+    media,
+    comentario       || ''
+  ]);
+
+  return { media };
 }

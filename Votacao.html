@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VOTAÇÃO FINAL — PRF</title>
+  <style>
+    :root {
+      --azul-prf:   #1d1a5b;
+      --amarelo-prf:#f2c200;
+      --cinza-fundo:#f5f6f7;
+      --azul-btn:   #2a5db0;
+      --verde:      #2e7d32;
+      --erro:       #c62828;
+      --shadow:     0 2px 12px rgba(0,0,0,.10);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+    body { background:var(--cinza-fundo); }
+
+    /* ── Topbar ── */
+    .topbar {
+      width:100%; background:var(--azul-prf); color:#fff;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 20px; flex-wrap:wrap;
+    }
+    .topbar-left { display:flex; align-items:center; gap:14px; }
+    .logo  { font-weight:bold; font-size:22px; color:var(--amarelo-prf); }
+    .title { font-size:17px; }
+    .topbar-right { font-size:12px; opacity:.75; }
+
+    /* ── Container ── */
+    .container {
+      max-width:560px; margin:0 auto;
+      padding:24px 16px 70px;
+    }
+
+    /* ── Card base ── */
+    .card {
+      background:#fff; border-radius:12px;
+      box-shadow:var(--shadow); overflow:hidden;
+    }
+    .card + .card { margin-top:14px; }
+
+    /* ── Loading ── */
+    #telaLoading {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; min-height:60vh; gap:16px;
+    }
+    .spinner {
+      width:40px; height:40px; border-radius:50%;
+      border:4px solid #dde3ea;
+      border-top-color:var(--azul-prf);
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Page title ── */
+    .page-title {
+      display:flex; align-items:center; gap:10px;
+      margin-bottom:18px;
+    }
+    .page-title h1 { font-size:18px; color:var(--azul-prf); font-weight:700; }
+    .page-title .badge-total {
+      background:var(--azul-prf); color:var(--amarelo-prf);
+      font-size:11px; font-weight:700; padding:3px 9px;
+      border-radius:12px; margin-left:4px;
+    }
+
+    /* ── Candidato card (lista) ── */
+    .cand-card {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 16px; cursor:pointer;
+      transition:background .15s;
+    }
+    .cand-card:not(:last-child) { border-bottom:1px solid #f0f2f5; }
+    .cand-card:hover { background:#f5f8ff; }
+    .cand-avatar {
+      width:44px; height:44px; border-radius:50%; flex-shrink:0;
+      background:var(--azul-prf); color:var(--amarelo-prf);
+      display:flex; align-items:center; justify-content:center;
+      font-size:16px; font-weight:700;
+    }
+    .cand-info { flex:1; min-width:0; }
+    .cand-nome { font-size:14px; font-weight:700; color:#1a2332; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cand-sub  { font-size:12px; color:#8a96a3; margin-top:2px; }
+    .cand-status { flex-shrink:0; }
+    .badge {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:4px 10px; border-radius:20px;
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.3px;
+    }
+    .badge.pendente  { background:#fff3cd; color:#856404; }
+    .badge.votado    { background:#d1f5e0; color:#155724; }
+    .badge-votar {
+      padding:7px 14px; background:var(--azul-btn); color:#fff;
+      border:none; border-radius:6px; font-size:12px; font-weight:700;
+      cursor:pointer; font-family:inherit; text-transform:uppercase; letter-spacing:.3px;
+      transition:background .2s;
+    }
+    .badge-votar:hover { background:#1f4a8a; }
+
+    /* ── Votação form ── */
+    #telaVotacao { display:none; }
+
+    .back-btn {
+      display:inline-flex; align-items:center; gap:6px;
+      background:none; border:none; color:var(--azul-btn);
+      font-size:13px; font-weight:700; cursor:pointer;
+      font-family:inherit; padding:0; margin-bottom:16px;
+      text-transform:uppercase; letter-spacing:.3px;
+    }
+    .back-btn:hover { text-decoration:underline; }
+
+    .cand-header {
+      padding:16px 18px;
+      border-bottom:2px solid var(--cinza-fundo);
+    }
+    .cand-header-nome { font-size:16px; font-weight:700; color:#1a2332; }
+    .cand-header-sub  { font-size:12px; color:#8a96a3; margin-top:3px; }
+
+    /* ── Critério card ── */
+    .criterio-card {
+      padding:16px 18px;
+      border-bottom:1px solid #f0f2f5;
+    }
+    .criterio-card:last-of-type { border-bottom:none; }
+
+    .criterio-titulo {
+      font-size:13px; font-weight:700; color:var(--azul-prf);
+      text-transform:uppercase; letter-spacing:.4px; margin-bottom:4px;
+    }
+    .criterio-pergunta {
+      font-size:12px; color:#5a6a7a; font-style:italic;
+      line-height:1.5; margin-bottom:14px;
+      padding-left:10px; border-left:3px solid #dde3ea;
+    }
+
+    /* ── Rating buttons ── */
+    .rating-wrap {
+      display:flex; align-items:center; gap:0;
+    }
+    .rating-label {
+      font-size:10px; color:#aab; font-weight:600;
+      text-transform:uppercase; letter-spacing:.3px; width:52px; flex-shrink:0;
+    }
+    .rating-label.right { text-align:right; }
+    .rating-group {
+      display:flex; gap:8px; flex:1; justify-content:center;
+    }
+    .rb {
+      width:42px; height:42px; border-radius:50%;
+      border:2px solid #dde3ea; background:#f8fafc;
+      color:#aab; font-size:15px; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .15s; flex-shrink:0;
+    }
+    .rb:hover { transform:scale(1.12); border-color:#aaa; }
+    .rb.sel-1 { background:#c62828; border-color:#c62828; color:#fff; transform:scale(1.1); }
+    .rb.sel-2 { background:#e65100; border-color:#e65100; color:#fff; transform:scale(1.1); }
+    .rb.sel-3 { background:#f9a825; border-color:#f9a825; color:#fff; transform:scale(1.1); }
+    .rb.sel-4 { background:#558b2f; border-color:#558b2f; color:#fff; transform:scale(1.1); }
+    .rb.sel-5 { background:#2e7d32; border-color:#2e7d32; color:#fff; transform:scale(1.1); }
+
+    /* ── Comentário ── */
+    .comentario-wrap { padding:16px 18px; }
+    .field-label {
+      display:block; font-size:11px; font-weight:700;
+      color:var(--azul-prf); margin-bottom:6px;
+      text-transform:uppercase; letter-spacing:.4px;
+    }
+    textarea {
+      width:100%; padding:10px 12px; border:1.5px solid #dde3ea;
+      border-radius:6px; font-size:13px; font-family:inherit;
+      background:#f8fafc; color:#1a2332; resize:vertical;
+      min-height:72px; transition:border-color .2s;
+    }
+    textarea:focus { outline:none; border-color:var(--azul-btn); background:#fff; }
+
+    /* ── Botão principal ── */
+    .btn-votar {
+      width:100%; padding:14px; border:none; border-radius:0 0 12px 12px;
+      font-size:14px; font-weight:700; font-family:inherit;
+      text-transform:uppercase; letter-spacing:.5px;
+      cursor:pointer; transition:all .2s;
+      background:var(--azul-btn); color:#fff;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .btn-votar:hover:not(:disabled) { background:#1f4a8a; }
+    .btn-votar:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* ── Preview de média ── */
+    .media-preview {
+      padding:12px 18px; background:#f8fafc;
+      border-top:1px solid #f0f2f5;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .media-preview .mp-lbl { font-size:11px; color:#8a96a3; text-transform:uppercase; font-weight:700; letter-spacing:.3px; }
+    .media-valor {
+      font-size:22px; font-weight:700;
+      transition:color .3s;
+    }
+
+    /* ── Tela confirmação ── */
+    #telaConfirmacao { display:none; }
+    .confirm-card {
+      text-align:center; padding:32px 24px;
+    }
+    .confirm-icon {
+      width:64px; height:64px; border-radius:50%;
+      background:#d1f5e0; display:flex; align-items:center;
+      justify-content:center; margin:0 auto 16px;
+    }
+    .confirm-icon svg { width:32px; height:32px; }
+    .confirm-titulo { font-size:20px; font-weight:700; color:#1a2332; margin-bottom:8px; }
+    .confirm-sub    { font-size:13px; color:#8a96a3; margin-bottom:20px; line-height:1.5; }
+    .confirm-notas  {
+      display:flex; flex-direction:column; gap:8px;
+      background:#f8fafc; border-radius:8px; padding:14px 16px;
+      margin-bottom:20px; text-align:left;
+    }
+    .cn-row {
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:12px;
+    }
+    .cn-nome { color:#5a6a7a; font-weight:600; }
+    .cn-val  {
+      width:28px; height:28px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:700; color:#fff;
+    }
+    .cn-media {
+      font-size:14px; font-weight:700; color:var(--azul-prf);
+      padding-top:8px; border-top:1px solid #dde3ea;
+    }
+    .btn-voltar-lista {
+      width:100%; padding:12px; border:1.5px solid #dde3ea;
+      border-radius:8px; background:#fff; color:#444;
+      font-size:13px; font-weight:700; font-family:inherit;
+      text-transform:uppercase; letter-spacing:.4px;
+      cursor:pointer; transition:background .2s;
+    }
+    .btn-voltar-lista:hover { background:#f0f0f0; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align:center; padding:48px 24px; color:#8a96a3;
+    }
+    .empty-state svg { width:48px; height:48px; margin-bottom:12px; opacity:.4; }
+    .empty-state p { font-size:14px; }
+
+    /* ── Toast ── */
+    #toast-container {
+      position:fixed; inset:0; display:flex;
+      align-items:center; justify-content:center;
+      pointer-events:none; z-index:9999;
+    }
+    .toast {
+      display:flex; align-items:flex-start; gap:12px;
+      padding:14px 18px; border-radius:10px; max-width:320px; width:90%;
+      box-shadow:0 8px 32px rgba(0,0,0,.22); font-size:13px; line-height:1.5;
+      pointer-events:auto; animation:toastIn .25s ease;
+    }
+    .toast.saindo { animation:toastOut .3s ease forwards; }
+    .toast.erro    { background:#fff0f0; border-left:5px solid var(--erro);  color:#7f0000; }
+    .toast.sucesso { background:#e8f5e9; border-left:5px solid var(--verde); color:#1b5e20; }
+    @keyframes toastIn  { from{opacity:0;transform:scale(.88)} to{opacity:1;transform:scale(1)} }
+    @keyframes toastOut { from{opacity:1;transform:scale(1)}   to{opacity:0;transform:scale(.88)} }
+
+    /* ── Footer ── */
+    .footer {
+      position:fixed; bottom:0; width:100%;
+      background:var(--amarelo-prf);
+      padding:5px 10px; font-size:12px;
+      display:flex; justify-content:space-between;
+    }
+
+    @media(max-width:480px) {
+      .rating-label { display:none; }
+      .rb { width:38px; height:38px; font-size:14px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">PRF</div>
+      <div class="title">Votação Final — Recrutamentos</div>
+    </div>
+    <div class="topbar-right" id="nomeEleitor"></div>
+  </div>
+
+  <div class="container">
+
+    <!-- ── TELA: Carregando ── -->
+    <div id="telaLoading">
+      <div class="spinner"></div>
+      <div style="font-size:14px;color:#8a96a3;">Carregando candidatos...</div>
+    </div>
+
+    <!-- ── TELA: Lista de candidatos ── -->
+    <div id="telaLista" style="display:none;">
+      <div class="page-title">
+        <h1>Candidatos</h1>
+        <span class="badge-total" id="totalPendentes"></span>
+      </div>
+      <div class="card" id="listaCandidatos"></div>
+    </div>
+
+    <!-- ── TELA: Formulário de voto ── -->
+    <div id="telaVotacao">
+      <button class="back-btn" onclick="voltarLista()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        Candidatos
+      </button>
+
+      <div class="card">
+        <!-- Info do candidato -->
+        <div class="cand-header">
+          <div class="cand-header-nome" id="vNome"></div>
+          <div class="cand-header-sub" id="vSub"></div>
+        </div>
+
+        <!-- Critério 1 -->
+        <div class="criterio-card">
+          <div class="criterio-titulo">Confiança (Retaguarda)</div>
+          <div class="criterio-pergunta">Se o "pau quebrar", ele fica do meu lado ou corre sozinho?</div>
+          <div class="rating-wrap">
+            <span class="rating-label">Péssimo</span>
+            <div class="rating-group" id="rg-confianca">
+              <button class="rb" data-val="1" onclick="selecionar('confianca',1)">1</button>
+              <button class="rb" data-val="2" onclick="selecionar('confianca',2)">2</button>
+              <button class="rb" data-val="3" onclick="selecionar('confianca',3)">3</button>
+              <button class="rb" data-val="4" onclick="selecionar('confianca',4)">4</button>
+              <button class="rb" data-val="5" onclick="selecionar('confianca',5)">5</button>
+            </div>
+            <span class="rating-label right">Excelente</span>
+          </div>
+        </div>
+
+        <!-- Critério 2 -->
+        <div class="criterio-card">
+          <div class="criterio-titulo">Lealdade e Caráter</div>
+          <div class="criterio-pergunta">Ele honra a palavra dada e respeita a história do grupo?</div>
+          <div class="rating-wrap">
+            <span class="rating-label">Péssimo</span>
+            <div class="rating-group" id="rg-lealdade">
+              <button class="rb" data-val="1" onclick="selecionar('lealdade',1)">1</button>
+              <button class="rb" data-val="2" onclick="selecionar('lealdade',2)">2</button>
+              <button class="rb" data-val="3" onclick="selecionar('lealdade',3)">3</button>
+              <button class="rb" data-val="4" onclick="selecionar('lealdade',4)">4</button>
+              <button class="rb" data-val="5" onclick="selecionar('lealdade',5)">5</button>
+            </div>
+            <span class="rating-label right">Excelente</span>
+          </div>
+        </div>
+
+        <!-- Critério 3 -->
+        <div class="criterio-card">
+          <div class="criterio-titulo">Potencial de Amizade</div>
+          <div class="criterio-pergunta">Eu tenho vontade de tomar uma cerveja/café com ele após o turno?</div>
+          <div class="rating-wrap">
+            <span class="rating-label">Péssimo</span>
+            <div class="rating-group" id="rg-amizade">
+              <button class="rb" data-val="1" onclick="selecionar('amizade',1)">1</button>
+              <button class="rb" data-val="2" onclick="selecionar('amizade',2)">2</button>
+              <button class="rb" data-val="3" onclick="selecionar('amizade',3)">3</button>
+              <button class="rb" data-val="4" onclick="selecionar('amizade',4)">4</button>
+              <button class="rb" data-val="5" onclick="selecionar('amizade',5)">5</button>
+            </div>
+            <span class="rating-label right">Excelente</span>
+          </div>
+        </div>
+
+        <!-- Critério 4 -->
+        <div class="criterio-card">
+          <div class="criterio-titulo">Controle de Ego</div>
+          <div class="criterio-pergunta">Ele sabe ser humilde para aprender e rir de si mesmo com os irmãos?</div>
+          <div class="rating-wrap">
+            <span class="rating-label">Péssimo</span>
+            <div class="rating-group" id="rg-ego">
+              <button class="rb" data-val="1" onclick="selecionar('ego',1)">1</button>
+              <button class="rb" data-val="2" onclick="selecionar('ego',2)">2</button>
+              <button class="rb" data-val="3" onclick="selecionar('ego',3)">3</button>
+              <button class="rb" data-val="4" onclick="selecionar('ego',4)">4</button>
+              <button class="rb" data-val="5" onclick="selecionar('ego',5)">5</button>
+            </div>
+            <span class="rating-label right">Excelente</span>
+          </div>
+        </div>
+
+        <!-- Critério 5 -->
+        <div class="criterio-card">
+          <div class="criterio-titulo">Integração Familiar</div>
+          <div class="criterio-pergunta">Eu me sentiria confortável apresentando minha família a ele?</div>
+          <div class="rating-wrap">
+            <span class="rating-label">Péssimo</span>
+            <div class="rating-group" id="rg-familia">
+              <button class="rb" data-val="1" onclick="selecionar('familia',1)">1</button>
+              <button class="rb" data-val="2" onclick="selecionar('familia',2)">2</button>
+              <button class="rb" data-val="3" onclick="selecionar('familia',3)">3</button>
+              <button class="rb" data-val="4" onclick="selecionar('familia',4)">4</button>
+              <button class="rb" data-val="5" onclick="selecionar('familia',5)">5</button>
+            </div>
+            <span class="rating-label right">Excelente</span>
+          </div>
+        </div>
+
+        <!-- Comentário opcional -->
+        <div class="comentario-wrap">
+          <label class="field-label" for="comentario">Comentário (opcional)</label>
+          <textarea id="comentario" placeholder="Observações livres sobre este candidato..."></textarea>
+        </div>
+
+        <!-- Prévia da média -->
+        <div class="media-preview">
+          <span class="mp-lbl">Média parcial</span>
+          <span class="media-valor" id="mediaValor">—</span>
+        </div>
+
+        <!-- Botão de envio -->
+        <button class="btn-votar" id="btnVotar" onclick="confirmarVoto()" disabled>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+          Confirmar Voto
+        </button>
+      </div>
+    </div>
+
+    <!-- ── TELA: Confirmação ── -->
+    <div id="telaConfirmacao">
+      <div class="card confirm-card">
+        <div class="confirm-icon">
+          <svg viewBox="0 0 24 24" fill="#2e7d32"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z"/></svg>
+        </div>
+        <div class="confirm-titulo">Voto registrado!</div>
+        <div class="confirm-sub" id="confirmSub"></div>
+        <div class="confirm-notas" id="confirmNotas"></div>
+        <button class="btn-voltar-lista" onclick="voltarLista()">
+          ← Votar em outro candidato
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast-container"></div>
+
+  <div class="footer">
+    <div>DIPROM/DGP — Votação Final de Recrutamento</div>
+    <div id="versao"></div>
+  </div>
+
+  <script>
+    // ── Estado global ────────────────────────────────────────────────
+    var _candidatos  = [];
+    var _jaVotei     = [];
+    var _emailAtual  = '';
+    var _nomeAtual   = '';
+    var _notas = { confianca:0, lealdade:0, amizade:0, ego:0, familia:0 };
+
+    var CRITERIOS = [
+      { key:'confianca', nome:'Confiança (Retaguarda)'  },
+      { key:'lealdade',  nome:'Lealdade e Caráter'      },
+      { key:'amizade',   nome:'Potencial de Amizade'    },
+      { key:'ego',       nome:'Controle de Ego'         },
+      { key:'familia',   nome:'Integração Familiar'     }
+    ];
+
+    var COR_NOTA = { 1:'#c62828', 2:'#e65100', 3:'#f9a825', 4:'#558b2f', 5:'#2e7d32' };
+
+    // ── Versão ───────────────────────────────────────────────────────
+    var _agora = new Date();
+    document.getElementById('versao').innerText =
+      'Versão: ' + _agora.toLocaleDateString('pt-BR') + ' ' +
+      _agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+    // ── Toast ────────────────────────────────────────────────────────
+    function toast(msg, tipo, dur) {
+      tipo = tipo || 'erro'; dur = dur || 4000;
+      var icons = {
+        erro:    '<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#c62828" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>',
+        sucesso: '<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#2e7d32" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z"/></svg>'
+      };
+      var el = document.createElement('div');
+      el.className = 'toast ' + tipo;
+      el.innerHTML = (icons[tipo] || icons.erro) +
+        '<span style="flex:1">' + msg + '</span>' +
+        '<button style="background:none;border:none;cursor:pointer;font-size:18px;opacity:.55;color:inherit;padding:0 2px" onclick="this.parentNode.remove()">×</button>';
+      var c = document.getElementById('toast-container');
+      c.innerHTML = ''; c.appendChild(el);
+      setTimeout(function() {
+        if (!el.parentNode) return;
+        el.classList.add('saindo');
+        setTimeout(function() { if (el.parentNode) el.remove(); }, 300);
+      }, dur);
+    }
+
+    // ── Inicialização ────────────────────────────────────────────────
+    google.script.run
+      .withSuccessHandler(function(res) {
+        _candidatos = res.candidatos || [];
+        _jaVotei    = res.jaVotei    || [];
+        document.getElementById('nomeEleitor').textContent = res.eleitor || '';
+
+        document.getElementById('telaLoading').style.display = 'none';
+        renderLista();
+        document.getElementById('telaLista').style.display = 'block';
+      })
+      .withFailureHandler(function(err) {
+        document.getElementById('telaLoading').innerHTML =
+          '<div style="text-align:center;color:#c62828;padding:32px">' +
+          '<svg viewBox="0 0 24 24" width="40" height="40" fill="#c62828"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>' +
+          '<p style="margin-top:12px;font-size:14px;font-weight:700">Acesso negado</p>' +
+          '<p style="font-size:12px;margin-top:6px;color:#555">' + (err.message || 'Sem permissão para acessar esta página.') + '</p>' +
+          '</div>';
+      })
+      .inicializarVotacao();
+
+    // ── Renderiza lista de candidatos ────────────────────────────────
+    function renderLista() {
+      var pendentes = _candidatos.filter(function(c) {
+        return _jaVotei.indexOf(c.email.toLowerCase()) === -1;
+      }).length;
+
+      document.getElementById('totalPendentes').textContent =
+        pendentes + (pendentes === 1 ? ' pendente' : ' pendentes');
+
+      var container = document.getElementById('listaCandidatos');
+
+      if (!_candidatos.length) {
+        container.innerHTML =
+          '<div class="empty-state">' +
+          '<svg viewBox="0 0 24 24" fill="#ccc"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>' +
+          '<p>Nenhum candidato disponível para votação.</p></div>';
+        return;
+      }
+
+      container.innerHTML = _candidatos.map(function(c) {
+        var votado  = _jaVotei.indexOf(c.email.toLowerCase()) !== -1;
+        var inicial = (c.nome || '?')[0].toUpperCase();
+        var badge   = votado
+          ? '<span class="badge votado">✓ Votado</span>'
+          : '<button class="badge-votar" onclick="abrirVotacao(\'' + esc(c.email) + '\')">Votar</button>';
+        return (
+          '<div class="cand-card" onclick="' + (votado ? '' : 'abrirVotacao(\'' + esc(c.email) + '\')') + '">' +
+          '<div class="cand-avatar">' + inicial + '</div>' +
+          '<div class="cand-info">' +
+            '<div class="cand-nome">' + esc(c.nome) + '</div>' +
+            '<div class="cand-sub">' + esc(c.matricula) + (c.unidade ? ' · ' + esc(c.unidade) : '') + '</div>' +
+          '</div>' +
+          '<div class="cand-status">' + badge + '</div>' +
+          '</div>'
+        );
+      }).join('');
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Abre formulário de votação ───────────────────────────────────
+    function abrirVotacao(email) {
+      var c = null;
+      for (var i = 0; i < _candidatos.length; i++) {
+        if (_candidatos[i].email.toLowerCase() === email.toLowerCase()) { c = _candidatos[i]; break; }
+      }
+      if (!c) return;
+
+      _emailAtual = c.email;
+      _nomeAtual  = c.nome;
+      _notas = { confianca:0, lealdade:0, amizade:0, ego:0, familia:0 };
+
+      document.getElementById('vNome').textContent = c.nome;
+      document.getElementById('vSub').textContent  =
+        (c.matricula || '') + (c.unidade ? ' · ' + c.unidade : '');
+      document.getElementById('comentario').value = '';
+      document.getElementById('btnVotar').disabled = true;
+      document.getElementById('mediaValor').textContent = '—';
+      document.getElementById('mediaValor').style.color = '#1a2332';
+
+      // Limpa seleções
+      CRITERIOS.forEach(function(cr) { limparGrupo(cr.key); });
+
+      document.getElementById('telaLista').style.display      = 'none';
+      document.getElementById('telaConfirmacao').style.display = 'none';
+      document.getElementById('telaVotacao').style.display    = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    function limparGrupo(key) {
+      var btns = document.querySelectorAll('#rg-' + key + ' .rb');
+      btns.forEach(function(b) { b.className = 'rb'; });
+    }
+
+    // ── Seleciona nota ───────────────────────────────────────────────
+    function selecionar(key, val) {
+      _notas[key] = val;
+      limparGrupo(key);
+      var alvo = document.querySelector('#rg-' + key + ' .rb[data-val="' + val + '"]');
+      if (alvo) alvo.classList.add('sel-' + val);
+      atualizarMedia();
+    }
+
+    function atualizarMedia() {
+      var preenchidos = CRITERIOS.filter(function(cr) { return _notas[cr.key] > 0; }).length;
+      var soma = CRITERIOS.reduce(function(acc, cr) { return acc + (_notas[cr.key] || 0); }, 0);
+
+      if (preenchidos === 0) {
+        document.getElementById('mediaValor').textContent = '—';
+        document.getElementById('mediaValor').style.color = '#1a2332';
+      } else {
+        var media = (soma / preenchidos).toFixed(1);
+        var cor = media >= 4 ? '#2e7d32' : media >= 3 ? '#f9a825' : media >= 2 ? '#e65100' : '#c62828';
+        document.getElementById('mediaValor').textContent = media;
+        document.getElementById('mediaValor').style.color = cor;
+      }
+
+      document.getElementById('btnVotar').disabled = (preenchidos < 5);
+    }
+
+    // ── Confirma e envia voto ────────────────────────────────────────
+    function confirmarVoto() {
+      var btnV = document.getElementById('btnVotar');
+      btnV.disabled = true;
+      btnV.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff" style="animation:spin .8s linear infinite"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 14.82 20 13.46 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 9.18 4 10.54 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> Enviando...';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          _jaVotei.push(_emailAtual.toLowerCase());
+
+          var soma = CRITERIOS.reduce(function(a, cr) { return a + _notas[cr.key]; }, 0);
+          var media = (soma / 5).toFixed(2);
+
+          document.getElementById('confirmSub').textContent =
+            'Seu voto para ' + _nomeAtual + ' foi salvo com sucesso.';
+
+          var notasHtml = CRITERIOS.map(function(cr) {
+            var v = _notas[cr.key];
+            return '<div class="cn-row"><span class="cn-nome">' + cr.nome + '</span>' +
+              '<span class="cn-val" style="background:' + COR_NOTA[v] + '">' + v + '</span></div>';
+          }).join('');
+
+          var corMedia = media >= 4 ? '#2e7d32' : media >= 3 ? '#f9a825' : media >= 2 ? '#e65100' : '#c62828';
+          notasHtml += '<div class="cn-media">Média final: <span style="color:' + corMedia + '">' + media + '</span> / 5,00</div>';
+
+          document.getElementById('confirmNotas').innerHTML = notasHtml;
+
+          document.getElementById('telaVotacao').style.display      = 'none';
+          document.getElementById('telaConfirmacao').style.display  = 'block';
+          window.scrollTo(0, 0);
+        })
+        .withFailureHandler(function(err) {
+          btnV.disabled = false;
+          btnV.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Confirmar Voto';
+          toast(err.message || 'Erro ao salvar o voto. Tente novamente.', 'erro');
+        })
+        .salvarVoto(_emailAtual, _notas, document.getElementById('comentario').value.trim());
+    }
+
+    // ── Volta para a lista ───────────────────────────────────────────
+    function voltarLista() {
+      document.getElementById('telaVotacao').style.display      = 'none';
+      document.getElementById('telaConfirmacao').style.display  = 'none';
+      document.getElementById('telaLista').style.display        = 'block';
+      renderLista();
+      window.scrollTo(0, 0);
+    }
+  </script>
+
+</body>
+</html>
