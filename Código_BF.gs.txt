@@ -1,0 +1,59 @@
+/**
+ * Cria o menu personalizado na planilha PRF.
+ */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Recrutamento PRF')
+    .addItem('Aplicar Questionário Big Five', 'showSurvey')
+    .addToUi();
+}
+
+/**
+ * Abre o formulário HTML como um diálogo modal.
+ */
+function showSurvey() {
+  var html = HtmlService.createHtmlOutputFromFile('Formulario')
+    .setWidth(850)
+    .setHeight(700)
+    .setTitle('Inventário de Perfil Comportamental - BFI-44');
+  SpreadsheetApp.getUi().showModalDialog(html, ' ');
+}
+
+/**
+ * Processa as respostas, inverte os itens necessários e salva na planilha.
+ */
+function processAnswers(formData) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  
+  // Itens que possuem pontuação invertida (R) no BFI-44
+  const invertedItems = [2, 6, 8, 9, 12, 18, 23, 24, 27, 31, 34, 35, 37, 41, 43];
+  
+  // Converter respostas em números e aplicar inversão (6 - valor)
+  var rawScores = formData.responses.map(Number);
+  var adjustedScores = rawScores.map((score, index) => {
+    let itemNum = index + 1;
+    return invertedItems.includes(itemNum) ? (6 - score) : score;
+  });
+
+  // Cálculo das Dimensões (Médias)
+  var ext = (adjustedScores[0]+adjustedScores[5]+adjustedScores[10]+adjustedScores[15]+adjustedScores[20]+adjustedScores[25]+adjustedScores[30]+adjustedScores[35]) / 8;
+  var amab = (adjustedScores[1]+adjustedScores[6]+adjustedScores[11]+adjustedScores[16]+adjustedScores[21]+adjustedScores[26]+adjustedScores[31]+adjustedScores[36]+adjustedScores[41]) / 9;
+  var cons = (adjustedScores[2]+adjustedScores[7]+adjustedScores[12]+adjustedScores[17]+adjustedScores[22]+adjustedScores[27]+adjustedScores[32]+adjustedScores[37]+adjustedScores[42]) / 9;
+  var estab = (adjustedScores[3]+adjustedScores[8]+adjustedScores[13]+adjustedScores[18]+adjustedScores[23]+adjustedScores[28]+adjustedScores[33]+adjustedScores[38]) / 8;
+  var abert = (adjustedScores[4]+adjustedScores[9]+scores_abertura(adjustedScores)) / 10; // Simplificado para exemplo
+
+  // Salvar na Planilha: Data, Nome/SIAPE, Extroversão, Amabilidade, Conscienciosidade, Estabilidade, Abertura
+  sheet.appendRow([
+    new Date(), 
+    formData.identificacao, 
+    ext.toFixed(2), 
+    amab.toFixed(2), 
+    cons.toFixed(2), 
+    estab.toFixed(2), 
+    ( (adjustedScores[4]+adjustedScores[9]+adjustedScores[14]+adjustedScores[19]+adjustedScores[24]+adjustedScores[29]+adjustedScores[34]+adjustedScores[39]+adjustedScores[40]+adjustedScores[43]) / 10 ).toFixed(2)
+  ]);
+
+  return "Dados processados e registrados com sucesso para o servidor: " + formData.identificacao;
+}
+
+function scores_abertura(s) { return s[14]+s[19]+s[24]+s[29]+s[34]+s[39]+s[40]+s[43]; }

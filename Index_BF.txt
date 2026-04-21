@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <style>
+    body { background-color: #f4f7f9; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .container-main { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .header-prf { background: #002C53; color: white; padding: 20px; border-radius: 8px 8px 0 0; margin: -30px -30px 25px -30px; text-align: center; }
+    .termo-box { background: #f9f9f9; border: 1px solid #e0e0e0; padding: 20px; font-size: 0.85rem; margin-bottom: 25px; border-left: 5px solid #FFD700; }
+    .question-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+    .question-item:last-child { border-bottom: none; }
+    .radio-group { display: flex; justify-content: space-between; margin-top: 10px; flex-wrap: wrap; }
+    .radio-option { font-size: 0.8rem; text-align: center; width: 18%; }
+    .sticky-footer { position: sticky; bottom: 0; background: white; padding: 15px; border-top: 1px solid #ddd; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container-main">
+    <div class="header-prf">
+      <h1 class="title is-4 has-text-white">RECRUTAMENTO INTERNO PRF</h1>
+      <p class="subtitle is-6 has-text-grey-light">Inventário de Perfil Comportamental (BFI-44)</p>
+    </div>
+
+    <div class="termo-box">
+      <h2 class="subtitle is-6"><strong>Termo de Consentimento e Esclarecimento Técnico</strong></h2>
+      <p>Este instrumento fundamenta-se no <strong>Modelo dos Cinco Grandes Fatores (Five-Factor Model - FFM)</strong>, constructo com elevada validade preditiva e estabilidade temporal. A metodologia visa o mapeamento de tendências comportamentais para subsidiar a estratégia de alocação funcional.</p>
+      <p class="mt-2"><strong>Caráter Complementar:</strong> Este inventário é uma ferramenta de suporte. Nenhum candidato será aprovado ou eliminado exclusivamente em razão destes resultados.</p>
+      <label class="checkbox mt-3">
+        <input type="checkbox" id="aceite" required> <strong>Declaro que li e compreendo a natureza técnica e complementar desta avaliação.</strong>
+      </label>
+    </div>
+
+    <form id="quizForm">
+      <div class="field">
+        <label class="label">Identificação (Nome Completo ou SIAPE):</label>
+        <div class="control">
+          <input class="input" type="text" name="identificacao" placeholder="Ex: João Silva - 1234567" required>
+        </div>
+      </div>
+
+      <hr>
+
+      <div id="questionsContainer">
+        </div>
+
+      <div class="sticky-footer">
+        <button type="submit" id="btnEnviar" class="button is-link is-large is-fullwidth">Enviar Avaliação</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const questions = [
+      "É cheio de energia.", "Tende a criticar os outros.", "Faz um trabalho minucioso.",
+      "É deprimido, triste.", "É original, cria novas ideias.", "É reservado, calado.",
+      "É prestativo e generoso com os outros.", "Pode ser um pouco descuidado.",
+      "É relaxado, lida bem com o estresse.", "Tem curiosidade sobre muitas coisas.",
+      "É assertivo, tem facilidade de influenciar.", "Tende a ser briguento.",
+      "É um trabalhador confiável.", "Pode ser tenso.", "É engenhoso, pensa profundamente.",
+      "Gera muito entusiasmo.", "Tem uma natureza perdoadora.", "Tende a ser desorganizado.",
+      "Preocupa-se muito com as coisas.", "Tem uma imaginação ativa.", "Tende a ser quieto.",
+      "Geralmente confia nos outros.", "Tende a ser preguiçoso.", "É emocionalmente estável.",
+      "É inventivo.", "Tem uma personalidade assertiva.", "Pode ser frio e distante.",
+      "Persevera até a tarefa terminar.", "Pode ser temperamental.", "Valoriza experiências estéticas.",
+      "É tímido ou inibido.", "É atencioso e gentil.", "Faz as coisas eficientemente.",
+      "Permanece calmo em situações tensas.", "Prefere trabalhos rotineiros.", "É extrovertido, sociável.",
+      "Às vezes é rude com os outros.", "Faz planos e os segue fielmente.", "Fica nervoso facilmente.",
+      "Gosta de refletir, brincar com ideias.", "Tem poucos interesses artísticos.",
+      "Gosta de cooperar com os outros.", "Distrai-se facilmente.", "É sofisticado em arte/música."
+    ];
+
+    const container = document.getElementById('questionsContainer');
+    
+    questions.forEach((q, i) => {
+      let div = document.createElement('div');
+      div.className = 'question-item';
+      div.innerHTML = `
+        <p class="is-size-6"><strong>${i+1}.</strong> ${q}</p>
+        <div class="radio-group">
+          ${[1,2,3,4,5].map(v => `
+            <label class="radio-option">
+              <input type="radio" name="q${i}" value="${v}" required><br>
+              ${v == 1 ? 'Discordo Total' : v == 5 ? 'Concordo Total' : v}
+            </label>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(div);
+    });
+
+    document.getElementById('quizForm').onsubmit = function(e) {
+      e.preventDefault();
+      if(!document.getElementById('aceite').checked) {
+        alert("Você deve aceitar o termo de consentimento.");
+        return;
+      }
+
+      const btn = document.getElementById('btnEnviar');
+      btn.disabled = true;
+      btn.innerText = "Processando...";
+
+      const formData = new FormData(this);
+      const payload = {
+        identificacao: formData.get('identificacao'),
+        responses: questions.map((_, i) => formData.get('q' + i))
+      };
+
+      google.script.run
+        .withSuccessHandler(msg => {
+          alert(msg);
+          google.script.host.close();
+        })
+        .processAnswers(payload);
+    };
+  </script>
+</body>
+</html>
