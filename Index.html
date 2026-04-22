@@ -86,6 +86,44 @@
     .ddd-w { flex:0 0 80px; }
     .tel-w  { flex:1; }
 
+    /* ─── Campo e-mail cônjuge ──────────────────── */
+    .email-conj-wrap {
+      position:relative;
+    }
+    .email-conj-wrap .ec-at {
+      position:absolute; left:13px; top:50%; transform:translateY(-50%);
+      color:#9ba8b4; font-size:15px; font-weight:700; pointer-events:none;
+      transition:color .2s;
+    }
+    .email-conj-wrap input {
+      padding-left:32px !important;
+      padding-right:38px !important;
+    }
+    .email-conj-wrap .ec-status {
+      position:absolute; right:12px; top:50%; transform:translateY(-50%);
+      width:20px; height:20px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:700; opacity:0;
+      transition:opacity .2s, background .2s;
+    }
+    .email-conj-wrap.ec-ok .ec-at     { color:#2e7d32; }
+    .email-conj-wrap.ec-ok input       { border-color:#66bb6a; box-shadow:0 0 0 3px rgba(46,125,50,.10); background:#f0faf0; }
+    .email-conj-wrap.ec-ok .ec-status  { opacity:1; background:#2e7d32; color:#fff; }
+    .email-conj-wrap.ec-warn .ec-at    { color:#e65100; }
+    .email-conj-wrap.ec-warn input     { border-color:#ffa726; box-shadow:0 0 0 3px rgba(230,81,0,.10); }
+    .email-conj-wrap.ec-warn .ec-status{ opacity:1; background:#e65100; color:#fff; }
+    .email-conj-wrap.ec-err .ec-at     { color:var(--erro); }
+    .email-conj-wrap.ec-err input      { border-color:var(--erro); box-shadow:0 0 0 3px rgba(198,40,40,.10); }
+    .email-conj-wrap.ec-err .ec-status { opacity:1; background:var(--erro); color:#fff; }
+
+    .field-hint {
+      font-size:11.5px; color:#8a96a3; margin-top:5px;
+      display:flex; align-items:center; gap:5px; line-height:1.4;
+    }
+    .field-hint.hint-ok   { color:#2e7d32; }
+    .field-hint.hint-warn { color:#e65100; }
+    .field-hint.hint-err  { color:var(--erro); }
+
     /* ─── Divisor ────────────────────────────────── */
     .sec-div { display:flex; align-items:center; gap:10px; margin:24px 0 18px; }
     .sec-div::before,.sec-div::after { content:''; flex:1; height:1px; background:var(--bd); }
@@ -424,7 +462,18 @@
           </div>
           <div class="form-group">
             <label class="flabel">E-mail Institucional do Cônjuge <span class="obrig">*</span></label>
-            <input type="email" id="conjugeEmail" name="conjugeEmail" placeholder="usuario@prf.gov.br">
+            <div class="email-conj-wrap" id="ecWrap">
+              <span class="ec-at">@</span>
+              <input type="email" id="conjugeEmail" name="conjugeEmail"
+                     placeholder="servidor@prf.gov.br"
+                     oninput="validarEmailConjuge()" autocomplete="off"
+                     autocapitalize="none" spellcheck="false">
+              <span class="ec-status" id="ecStatus" title=""></span>
+            </div>
+            <div class="field-hint" id="ecHint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              Deve ser o e-mail @prf.gov.br do cônjuge, diferente do seu.
+            </div>
           </div>
           <div class="form-group">
             <label class="flabel">Tipo de União <span class="obrig">*</span></label>
@@ -832,6 +881,7 @@ function preencherFormulario(d) {
       var el = document.getElementById(id);
       if (el && d[id]) el.value = d[id];
     });
+    if (d.conjugeEmail) validarEmailConjuge();
     marcarUploadAnterior('uniao', 'urlComprovUniao', 'filesListUniao', 'uzLabelUniao', d.urlComprovUniao);
     marcarUploadAnterior('coab',  'urlComprovCoab',  'filesListCoab',  'uzLabelCoab',  d.urlComprovCoab);
   } else if (d.conjuge === 'nao' || d.conjuge === 'Não') {
@@ -889,6 +939,56 @@ function preencherCamposDinamicos(containerId, valores) {
 /* ═════════════════════════════════════════════════════
    CÔNJUGE — SIM / NÃO
 ═════════════════════════════════════════════════════ */
+/* ─── Validação em tempo real do e-mail do cônjuge ──────────────── */
+function validarEmailConjuge() {
+  var wrap  = document.getElementById('ecWrap');
+  var input = document.getElementById('conjugeEmail');
+  var hint  = document.getElementById('ecHint');
+  var stat  = document.getElementById('ecStatus');
+  var val   = input.value.trim().toLowerCase();
+
+  // Remove classes anteriores
+  wrap.classList.remove('ec-ok','ec-warn','ec-err');
+  hint.classList.remove('hint-ok','hint-warn','hint-err');
+  input.classList.remove('invalid');
+  stat.title = '';
+
+  if (!val) {
+    // Vazio — estado neutro
+    hint.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> Deve ser o e-mail @prf.gov.br do cônjuge, diferente do seu.';
+    return;
+  }
+
+  if (!val.endsWith('@prf.gov.br')) {
+    // Domínio errado — só mostra erro depois de ter um @ digitado
+    if (val.includes('@')) {
+      wrap.classList.add('ec-err');
+      hint.classList.add('hint-err');
+      stat.textContent = '✕';
+      stat.title = 'Domínio inválido';
+      hint.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Use o e-mail <strong>@prf.gov.br</strong> do cônjuge.';
+    }
+    return;
+  }
+
+  if (val === _emailCandidato) {
+    // Mesmo e-mail do candidato
+    wrap.classList.add('ec-warn');
+    hint.classList.add('hint-warn');
+    stat.textContent = '!';
+    stat.title = 'Igual ao seu e-mail';
+    hint.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg> Este e-mail é o <strong>seu próprio</strong>. Informe o e-mail do cônjuge.';
+    return;
+  }
+
+  // Válido
+  wrap.classList.add('ec-ok');
+  hint.classList.add('hint-ok');
+  stat.textContent = '✓';
+  stat.title = 'E-mail válido';
+  hint.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14l-4-4 1.41-1.41L10 13.17l6.59-6.59L18 8l-8 8z"/></svg> E-mail institucional válido.';
+}
+
 function selecionarConjuge(opcao) {
   document.getElementById('conjugeHidden').value = opcao;
   document.getElementById('btnSim').classList.remove('yn-sim');
