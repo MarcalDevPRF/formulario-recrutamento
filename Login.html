@@ -406,6 +406,16 @@
             </div>
             <span class="badge-perfil avaliador" id="badgeVotador" style="background:#fce4ec;color:#c62828;">VOTADOR</span>
           </button>
+          <button class="btn-destino" id="btnAcessarConjuge" onclick="irPara('conjuge')" style="display:none;">
+            <div class="dest-icon" style="background:#fce4ec;">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#880e4f"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            </div>
+            <div class="dest-info">
+              <span class="dest-titulo">Confirmação de Cônjuge</span>
+              <span class="dest-sub">Declaração de acompanhamento</span>
+            </div>
+            <span class="badge-perfil" style="background:#fce4ec;color:#880e4f;font-size:10px;padding:3px 8px;border-radius:12px;">PENDENTE</span>
+          </button>
           <button class="btn-destino" id="btnAcessarAcompanhamento" onclick="irPara('acompanhamento')" style="display:none;">
             <div class="dest-icon" style="background:#e8f5e9;">
               <svg viewBox="0 0 24 24" width="24" height="24" fill="#2e7d32"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
@@ -463,6 +473,7 @@
     var _urlPainel         = null;
     var _urlVotacao        = null;
     var _urlAcompanhamento = null;
+    var _urlConjuge        = null;
 
     // ── Auto-login via sessão Google Workspace ──
     document.addEventListener('DOMContentLoaded', function() {
@@ -481,8 +492,9 @@
       _urlPainel         = res.painelUrl         || null;
       _urlVotacao        = res.votacaoUrl        || null;
       _urlAcompanhamento = res.acompanhamentoUrl || null;
+      _urlConjuge        = res.conjugeUrl        || null;
 
-      var temDestino = res.painelUrl || res.votacaoUrl || res.acompanhamentoUrl;
+      var temDestino = res.painelUrl || res.votacaoUrl || res.acompanhamentoUrl || res.conjugeUrl;
       document.getElementById('etapaCarregando').style.display = 'none';
 
       if (temDestino) {
@@ -500,6 +512,9 @@
         }
         if (res.acompanhamentoUrl) {
           document.getElementById('btnAcessarAcompanhamento').style.display = '';
+        }
+        if (res.conjugeUrl) {
+          document.getElementById('btnAcessarConjuge').style.display = '';
         }
         document.getElementById('etapaDestino').style.display = 'block';
       } else if (res.formUrl) {
@@ -774,6 +789,7 @@
       var url = destino === 'painel'          ? _urlPainel
               : destino === 'votacao'         ? _urlVotacao
               : destino === 'acompanhamento'  ? _urlAcompanhamento
+              : destino === 'conjuge'         ? _urlConjuge
               : _urlForm;
       if (url) window.top.location.href = url;
     }

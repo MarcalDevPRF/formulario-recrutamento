@@ -56,6 +56,14 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (params.pagina === 'conjuge') {
+    return HtmlService.createTemplateFromFile('Conjuge')
+      .evaluate()
+      .setTitle('Confirmação de Cônjuge — PRF')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   if (params.pagina === 'acompanhamento') {
     return HtmlService.createTemplateFromFile('Acompanhamento')
       .evaluate()
@@ -232,16 +240,27 @@ function iniciarSessao() {
     }
   } catch(e) {}
 
+  // Verifica inscrição própria (acompanhamento) e se é cônjuge pendente
   let acompanhamentoUrl = null;
+  let conjugeUrl        = null;
   try {
-    const shResp = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('respostas');
+    const shResp  = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('respostas');
     if (shResp && shResp.getLastRow() > 1) {
-      const rows = shResp.getRange(1, 1, shResp.getLastRow(), 2).getValues().slice(1);
+      const lastRow = shResp.getLastRow();
+      const rows    = shResp.getRange(1, 1, lastRow, 35).getValues().slice(1);
       for (let k = rows.length - 1; k >= 0; k--) {
-        if (String(rows[k][1] || '').toLowerCase() === email.toLowerCase()) {
+        // Inscrição própria
+        if (!acompanhamentoUrl && String(rows[k][1] || '').toLowerCase() === email.toLowerCase()) {
           acompanhamentoUrl = baseUrl + '?pagina=acompanhamento';
-          break;
         }
+        // É cônjuge de alguém com status pendente?
+        if (!conjugeUrl && String(rows[k][17] || '').toLowerCase() === email.toLowerCase()) {
+          const st = String(rows[k][34] || '').toLowerCase();
+          if (st !== 'confirmado' && st !== 'recusado') {
+            conjugeUrl = baseUrl + '?pagina=conjuge';
+          }
+        }
+        if (acompanhamentoUrl && conjugeUrl) break;
       }
     }
   } catch(e) {}
@@ -252,6 +271,7 @@ function iniciarSessao() {
     painelUrl:         painelInfo ? (baseUrl + '?pagina=painel') : null,
     votacaoUrl:        votacaoUrl,
     acompanhamentoUrl: acompanhamentoUrl,
+    conjugeUrl:        conjugeUrl,
     perfil:            painelInfo ? painelInfo.perfil : null,
     nome:              painelInfo ? painelInfo.nome   : email.split('@')[0]
   };
@@ -1566,6 +1586,112 @@ function _htmlPdfTermo(dados) {
     + '</body></html>';
 }
 
+// ════════════════════════════════════════════════════════════════
+//  CONFIRMAÇÃO DE CÔNJUGE VIA LOGIN (substitui fluxo por e-mail)
+// ════════════════════════════════════════════════════════════════
+
+function inicializarConjuge() {
+  const email = Session.getActiveUser().getEmail();
+  if (!email) throw new Error('Não foi possível identificar o usuário.');
+  if (_isEmailDeArea(email)) throw new Error('Use seu e-mail pessoal institucional para acessar.');
+
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('respostas');
+  if (!sheet || sheet.getLastRow() < 2) {
+    throw new Error('Nenhuma solicitação de acompanhamento encontrada para este e-mail.');
+  }
+
+  const data = sheet.getRange(1, 1, sheet.getLastRow(), 39).getValues();
+  let rowData = null;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][17] || '').toLowerCase() === email.toLowerCase()) {
+      rowData = data[i];
+      break;
+    }
+  }
+  if (!rowData) throw new Error('Nenhuma solicitação de acompanhamento encontrada para este e-mail.');
+
+  const statusConjuge = String(rowData[34] || '');
+  if (statusConjuge === 'Confirmado' || statusConjuge === 'Recusado') {
+    return { jaRespondeu: true, status: statusConjuge };
+  }
+
+  return {
+    jaRespondeu: false,
+    candidato: {
+      nome:      String(rowData[2]  || ''),
+      matricula: String(rowData[3]  || ''),
+      cargo:     String(rowData[4]  || ''),
+      unidade:   String(rowData[5]  || ''),
+      ddd:       String(rowData[7]  || ''),
+      telefone:  String(rowData[8]  || '')
+    },
+    conjuge: {
+      nome:       String(rowData[15] || ''),
+      matricula:  String(rowData[16] || ''),
+      email:      email,
+      tipoUniao:  String(rowData[18] || ''),
+      dataUniao:  String(rowData[19] || ''),
+      lotacao1:   String(rowData[22] || ''),
+      lotacao2:   String(rowData[23] || '')
+    }
+  };
+}
+
+function registrarRespostaConjuge(concordou) {
+  const email = Session.getActiveUser().getEmail();
+  if (!email) throw new Error('Não foi possível identificar o usuário.');
+
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName('respostas');
+  if (!sheet) throw new Error('Planilha de respostas não encontrada.');
+
+  const data = sheet.getRange(1, 1, sheet.getLastRow(), 39).getValues();
+  let rowData = null, rowIdx = -1;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][17] || '').toLowerCase() === email.toLowerCase()) {
+      const st = String(data[i][34] || '');
+      if (st === 'Confirmado' || st === 'Recusado') {
+        throw new Error('Sua resposta já foi registrada anteriormente (' + st + ').');
+      }
+      rowData = data[i];
+      rowIdx  = i + 1; // 1-indexed
+      break;
+    }
+  }
+  if (!rowData) throw new Error('Nenhuma solicitação encontrada para este e-mail.');
+
+  const novoStatus = concordou ? 'Confirmado' : 'Recusado';
+  const dataHora   = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss');
+
+  sheet.getRange(rowIdx, 35).setValue(novoStatus); // Status Cônjuge (col 34 → 35)
+  sheet.getRange(rowIdx, 36).setValue(dataHora);   // Data Confirmação Cônjuge
+
+  // Gerar e salvar PDF
+  let pdfUrl = '';
+  try {
+    const nomeConj = String(rowData[15] || '');
+    const nomeSan  = (nomeConj || 'Conjuge').replace(/[^a-zA-Z0-9À-ú ]/g, '').trim();
+    const htmlPdf  = concordou
+      ? _htmlPdfConcordancia(rowData, nomeConj, email, dataHora)
+      : _htmlPdfNaoConcordancia(rowData, nomeConj, email, dataHora);
+    const nomeBase = (concordou ? 'Concordancia' : 'NaoConcordancia') + '_' + nomeSan;
+    const res      = _gerarESalvarPdf(htmlPdf, nomeBase);
+    pdfUrl = res.url || '';
+    if (pdfUrl) sheet.getRange(rowIdx, 39).setValue(pdfUrl); // PDF Concordância Cônjuge
+  } catch(e) {
+    Logger.log('[conjuge PDF] ' + e.message);
+  }
+
+  const baseUrl = ScriptApp.getService().getUrl();
+  return {
+    ok:      true,
+    status:  novoStatus,
+    pdfUrl:  pdfUrl,
+    formUrl: baseUrl + '?pagina=formulario'
+  };
+}
+
 // ─── PDF 3: Declaração de Concordância do Cônjuge ─────────────────
 function _htmlPdfConcordancia(rowData, nomeConj, emailConj, dataConfirmacao) {
   const nomeCand = String(rowData[2]  || '');
@@ -1611,7 +1737,55 @@ function _htmlPdfConcordancia(rowData, nomeConj, emailConj, dataConfirmacao) {
     + _pdfTabela(
         _pdfLinha('E-mail do confirmante', emailConj)
         + _pdfLinha('Data/Hora', dataConfirmacao)
-        + _pdfLinha('Método', 'Clique em link enviado ao e-mail institucional (@prf.gov.br)')
+        + _pdfLinha('Método', 'Login autenticado via Google Workspace (@prf.gov.br)')
+      )
+    + '</div>'
+    + '</body></html>';
+}
+
+// ─── PDF 4: Declaração de Não Concordância do Cônjuge ──────────────
+function _htmlPdfNaoConcordancia(rowData, nomeConj, emailConj, dataRegistro) {
+  const nomeCand   = String(rowData[2] || '');
+  const matricCand = String(rowData[3] || '');
+  const unidade    = String(rowData[5] || '');
+
+  return '<html><body style="font-family:Arial,sans-serif;font-size:10pt;color:#333;margin:20px;">'
+    + _pdfCabecalho('Declaração de Não Concordância — Acompanhamento de Cônjuge')
+    + '<p style="text-align:right;font-size:9pt;color:#888;margin:0 0 10px;">Registrado em: ' + dataRegistro + '</p>'
+
+    + _pdfSecao('Dados da Solicitação')
+    + _pdfTabela(
+        _pdfLinha('Candidato', nomeCand)
+        + _pdfLinha('Matrícula', matricCand)
+        + _pdfLinha('Unidade Desejada', unidade)
+      )
+
+    + _pdfSecao('Declarante')
+    + _pdfTabela(
+        _pdfLinha('Nome do Cônjuge', nomeConj)
+        + _pdfLinha('E-mail Institucional', emailConj)
+      )
+
+    + _pdfSecao('Declaração')
+    + '<div style="border:1px solid #b71c1c;padding:14px 16px;margin:6px 0;border-radius:4px;background:#fff8f8;">'
+    + '<p style="text-align:justify;font-size:10pt;font-family:Arial;line-height:1.7;margin:0 0 10px;">'
+    + 'Eu, <strong>' + nomeConj + '</strong>, servidor(a) da Polícia Rodoviária Federal, '
+    + 'declaro que <strong>não concordo</strong> com a solicitação de acompanhamento de cônjuge '
+    + 'apresentada pelo(a) servidor(a) <strong>' + nomeCand + '</strong>, matrícula ' + matricCand + ', '
+    + 'no processo de recrutamento interno para a vaga de <strong>' + unidade + '</strong>.'
+    + '</p>'
+    + '<p style="text-align:justify;font-size:10pt;font-family:Arial;line-height:1.7;margin:0;">'
+    + 'Estou ciente de que a não concordância poderá resultar na negativa do pedido de '
+    + 'acompanhamento de cônjuge pela administração.'
+    + '</p>'
+    + '</div>'
+
+    + '<div style="margin-top:16px;padding-top:10px;border-top:1px solid #ccc;">'
+    + '<p style="font-size:10pt;font-family:Arial;font-weight:bold;margin:0 0 6px;">🔒 Registro eletrônico:</p>'
+    + _pdfTabela(
+        _pdfLinha('E-mail do declarante', emailConj)
+        + _pdfLinha('Data/Hora', dataRegistro)
+        + _pdfLinha('Método', 'Login autenticado via Google Workspace (@prf.gov.br)')
       )
     + '</div>'
     + '</body></html>';

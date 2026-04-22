@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CONFIRMAÇÃO DE CÔNJUGE — PRF</title>
+  <style>
+    :root {
+      --azul-prf:    #1d1a5b;
+      --amarelo-prf: #f2c200;
+      --azul-btn:    #2a5db0;
+      --cinza-fundo: #f5f6f7;
+      --verde:       #2e7d32;
+      --erro:        #c62828;
+      --rosa:        #880e4f;
+      --shadow:      0 2px 12px rgba(0,0,0,.10);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+    body { background:var(--cinza-fundo); }
+
+    /* ── Topbar ── */
+    .topbar {
+      width:100%; background:var(--azul-prf); color:#fff;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 20px; flex-wrap:wrap; gap:8px;
+    }
+    .topbar-left  { display:flex; align-items:center; gap:14px; }
+    .logo         { font-weight:bold; font-size:22px; color:var(--amarelo-prf); }
+    .title        { font-size:17px; }
+    .topbar-right { font-size:12px; opacity:.75; }
+
+    /* ── Container ── */
+    .container { max-width:640px; margin:0 auto; padding:24px 16px 80px; }
+
+    /* ── Cards ── */
+    .card {
+      background:#fff; border-radius:12px;
+      box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px;
+    }
+    .card-header {
+      background:var(--azul-prf); color:#fff;
+      padding:12px 18px; font-weight:bold; font-size:14px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .card-body { padding:18px; }
+
+    /* ── Loading ── */
+    #telaLoading {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; min-height:60vh; gap:16px;
+    }
+    .spinner {
+      width:46px; height:46px;
+      border:4px solid #dde3ea; border-top-color:var(--azul-prf);
+      border-radius:50%; animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Info grid ── */
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 20px; }
+    @media(max-width:420px) { .info-grid { grid-template-columns:1fr; } }
+    .info-item label {
+      display:block; font-size:11px; color:#888; text-transform:uppercase;
+      letter-spacing:.5px; margin-bottom:2px;
+    }
+    .info-item span { font-size:14px; color:#1a2332; font-weight:bold; }
+
+    /* ── Declaração ── */
+    .declaracao-box {
+      border:2px solid var(--azul-prf); border-radius:8px;
+      padding:16px 18px; background:#f8fafc; margin:12px 0;
+      font-size:13px; line-height:1.8; color:#1a2332; text-align:justify;
+    }
+    .declaracao-box strong { color:var(--azul-prf); }
+
+    .atencao-box {
+      background:#fff3e0; border:1px solid #ffb74d; border-radius:8px;
+      padding:12px 16px; font-size:13px; color:#e65100;
+      display:flex; align-items:flex-start; gap:10px; margin:12px 0;
+    }
+    .atencao-box .icon { font-size:18px; flex-shrink:0; }
+
+    /* ── Botões de ação ── */
+    .botoes-grupo {
+      display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;
+    }
+    .btn-concordo {
+      flex:1; min-width:140px;
+      background:var(--verde); color:#fff;
+      border:none; border-radius:8px;
+      padding:12px 20px; font-size:14px; font-weight:bold;
+      cursor:pointer; transition:background .2s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-concordo:hover    { background:#1b5e20; }
+    .btn-concordo:disabled { background:#b0bec5; cursor:not-allowed; }
+
+    .btn-nao-concordo {
+      flex:1; min-width:140px;
+      background:#fff; color:var(--erro);
+      border:2px solid var(--erro); border-radius:8px;
+      padding:12px 20px; font-size:14px; font-weight:bold;
+      cursor:pointer; transition:all .2s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-nao-concordo:hover    { background:#fff0f0; }
+    .btn-nao-concordo:disabled { opacity:.4; cursor:not-allowed; }
+
+    .btn-prosseguir {
+      width:100%; background:var(--azul-btn); color:#fff;
+      border:none; border-radius:8px;
+      padding:12px 20px; font-size:14px; font-weight:bold;
+      cursor:pointer; transition:background .2s; margin-top:10px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-prosseguir:hover    { background:var(--azul-prf); }
+    .btn-prosseguir:disabled { background:#b0bec5; cursor:not-allowed; }
+
+    /* ── Tela de não concordância ── */
+    #secaoNaoConcordo { display:none; }
+
+    /* ── Telas de resultado ── */
+    .resultado-box {
+      text-align:center; padding:36px 20px;
+    }
+    .resultado-box .icon { font-size:56px; margin-bottom:14px; }
+    .resultado-box h3    { font-size:18px; margin-bottom:8px; }
+    .resultado-box p     { font-size:13px; color:#666; line-height:1.7; }
+
+    /* ── Toast ── */
+    #toast {
+      position:fixed; bottom:24px; left:50%;
+      transform:translateX(-50%) translateY(60px);
+      background:#e65100; color:#fff;
+      padding:14px 24px; border-radius:10px;
+      font-size:13px; font-weight:bold;
+      opacity:0; transition:all .4s; z-index:9999;
+      pointer-events:none; max-width:340px; text-align:center;
+      box-shadow:0 4px 20px rgba(0,0,0,.25);
+    }
+    #toast.visivel { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ── Badge ── */
+    .badge-pendente {
+      display:inline-block; padding:3px 10px;
+      background:#fff3e0; color:#e65100;
+      border-radius:12px; font-size:11px; font-weight:bold;
+    }
+
+    /* ── Divisor ── */
+    .divider {
+      border:none; border-top:1px solid #eee; margin:16px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">PRF</span>
+    <span class="title">Confirmação de Cônjuge</span>
+  </div>
+  <div class="topbar-right" id="infoUsuario"></div>
+</div>
+
+<!-- Loading -->
+<div id="telaLoading">
+  <div class="spinner"></div>
+  <p style="color:#555;font-size:14px;">Carregando dados…</p>
+</div>
+
+<!-- Conteúdo principal -->
+<div class="container" id="conteudo" style="display:none;">
+
+  <!-- ── Tela: já respondeu ── -->
+  <div id="telaJaRespondeu" style="display:none;">
+    <div class="card">
+      <div class="card-body">
+        <div class="resultado-box">
+          <div class="icon">📋</div>
+          <h3 id="jaRespondeuTitulo">Resposta já registrada</h3>
+          <p id="jaRespondeuMsg">Sua resposta já foi registrada em nosso sistema.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tela principal: dados + declaração ── -->
+  <div id="telaConfirmacao">
+
+    <!-- Dados do candidato -->
+    <div class="card">
+      <div class="card-header">👤 Dados do Servidor Solicitante</div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-item"><label>Nome</label><span id="cadNome">—</span></div>
+          <div class="info-item"><label>Matrícula</label><span id="cadMatricula">—</span></div>
+          <div class="info-item"><label>Cargo</label><span id="cadCargo">—</span></div>
+          <div class="info-item"><label>Unidade Pleiteada</label><span id="cadUnidade">—</span></div>
+          <div class="info-item"><label>Contato</label><span id="cadContato">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dados do cônjuge -->
+    <div class="card">
+      <div class="card-header">💑 Dados da União</div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-item"><label>Tipo de União</label><span id="conjTipoUniao">—</span></div>
+          <div class="info-item"><label>Data da União</label><span id="conjDataUniao">—</span></div>
+          <div class="info-item"><label>Lotação Cônjuge 1</label><span id="conjLotacao1">—</span></div>
+          <div class="info-item"><label>Lotação Cônjuge 2</label><span id="conjLotacao2">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Declaração -->
+    <div class="card">
+      <div class="card-header">📄 Declaração de Concordância</div>
+      <div class="card-body">
+        <div class="declaracao-box" id="textoDeclaracao">
+          <!-- preenchido via JS -->
+        </div>
+
+        <div class="atencao-box">
+          <span class="icon">⚠️</span>
+          <span>Ao concordar, um documento PDF desta declaração será gerado, salvo no Drive e registrado no processo. Esta ação é <strong>irreversível</strong>.</span>
+        </div>
+
+        <div class="botoes-grupo">
+          <button class="btn-concordo" id="btnConcordo" onclick="acaoConcordar()">
+            ✅ Concordo
+          </button>
+          <button class="btn-nao-concordo" id="btnNaoConcordo" onclick="acaoNaoConcordar()">
+            ❌ Não Concordo
+          </button>
+        </div>
+
+        <!-- Seção que aparece após clicar em Não Concordo -->
+        <div id="secaoNaoConcordo">
+          <hr class="divider">
+          <div class="atencao-box" style="background:#ffebee;border-color:#ef9a9a;">
+            <span class="icon">🚫</span>
+            <div>
+              <strong>Atenção:</strong> ao declinar do acompanhamento de cônjuge, o pedido poderá ser
+              negado pela administração posteriormente. Você ainda pode prosseguir como
+              <strong>candidato individual</strong>, sem o benefício do acompanhamento.
+            </div>
+          </div>
+          <button class="btn-prosseguir" id="btnProsseguirNormal" onclick="acaoProsseguirNormal()">
+            ➡️ Prosseguir como candidato normal
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /telaConfirmacao -->
+
+  <!-- ── Tela: sucesso concordância ── -->
+  <div id="telaSucessoConcordou" style="display:none;">
+    <div class="card">
+      <div class="card-body">
+        <div class="resultado-box">
+          <div class="icon">✅</div>
+          <h3 style="color:var(--verde);">Concordância registrada!</h3>
+          <p>
+            Sua declaração de concordância foi registrada com sucesso.<br>
+            O documento PDF foi gerado e salvo no sistema.
+          </p>
+          <div id="linkPdfConcordou" style="margin-top:14px;display:none;">
+            <a id="linkPdfConcordouA" href="#" target="_blank"
+               style="color:var(--azul-btn);font-size:13px;font-weight:bold;">
+              📄 Visualizar PDF da Declaração
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tela: sucesso não concordância ── -->
+  <div id="telaSucessoNaoConcordou" style="display:none;">
+    <div class="card">
+      <div class="card-body">
+        <div class="resultado-box">
+          <div class="icon">📝</div>
+          <h3 style="color:var(--azul-btn);">Resposta registrada</h3>
+          <p>
+            Sua não concordância foi registrada.<br>
+            Você será redirecionado para o formulário de inscrição individual em instantes…
+          </p>
+          <div id="linkPdfNaoConcordou" style="margin-top:14px;display:none;">
+            <a id="linkPdfNaoConcordouA" href="#" target="_blank"
+               style="color:var(--azul-btn);font-size:13px;">
+              📄 Visualizar PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /conteudo -->
+
+<!-- Toast -->
+<div id="toast">⚠️ Atenção: ao declinar do acompanhamento de cônjuge, o pedido poderá ser negado pela administração posteriormente.</div>
+
+<script>
+var _dados     = null;
+var _toastTimer = null;
+
+// ── Inicialização ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  google.script.run
+    .withSuccessHandler(renderizar)
+    .withFailureHandler(function(err) {
+      document.getElementById('telaLoading').innerHTML =
+        '<div style="text-align:center;padding:40px 16px;">'
+        + '<div style="font-size:48px;margin-bottom:12px;">⛔</div>'
+        + '<p style="color:#c62828;font-size:15px;font-weight:bold;">'
+        + (err.message || 'Erro ao carregar dados.')
+        + '</p></div>';
+    })
+    .inicializarConjuge();
+});
+
+// ── Renderização ──────────────────────────────────────────────────
+function renderizar(dados) {
+  _dados = dados;
+  document.getElementById('telaLoading').style.display = 'none';
+  document.getElementById('conteudo').style.display    = '';
+
+  if (dados.jaRespondeu) {
+    var cor   = dados.status === 'Confirmado' ? 'var(--verde)' : 'var(--erro)';
+    var icone = dados.status === 'Confirmado' ? '✅' : '❌';
+    document.getElementById('jaRespondeuTitulo').textContent =
+      icone + ' ' + dados.status;
+    document.getElementById('jaRespondeuTitulo').style.color = cor;
+    document.getElementById('jaRespondeuMsg').textContent =
+      'Sua resposta (' + dados.status.toLowerCase() + ') já foi registrada em nosso sistema. ' +
+      'Não é necessária nenhuma ação adicional.';
+    document.getElementById('telaJaRespondeu').style.display    = '';
+    document.getElementById('telaConfirmacao').style.display    = 'none';
+    return;
+  }
+
+  var c  = dados.candidato;
+  var co = dados.conjuge;
+
+  document.getElementById('infoUsuario').textContent = co.nome || co.email || '';
+  document.getElementById('cadNome').textContent     = c.nome     || '—';
+  document.getElementById('cadMatricula').textContent= c.matricula|| '—';
+  document.getElementById('cadCargo').textContent    = c.cargo    || '—';
+  document.getElementById('cadUnidade').textContent  = c.unidade  || '—';
+  document.getElementById('cadContato').textContent  =
+    c.ddd && c.telefone ? '(' + c.ddd + ') ' + c.telefone : '—';
+
+  document.getElementById('conjTipoUniao').textContent  = co.tipoUniao || '—';
+  document.getElementById('conjDataUniao').textContent  = co.dataUniao || '—';
+  document.getElementById('conjLotacao1').textContent   = co.lotacao1  || '—';
+  document.getElementById('conjLotacao2').textContent   = co.lotacao2  || '—';
+
+  // Texto da declaração
+  var txt =
+    'Eu, <strong>' + (co.nome || co.email) + '</strong>, servidor(a) da Polícia Rodoviária Federal, '
+    + 'declaro expressamente que estou ciente e <strong>concordo</strong> com a solicitação de '
+    + 'acompanhamento de cônjuge apresentada pelo(a) servidor(a) <strong>' + c.nome + '</strong>, '
+    + 'matrícula ' + c.matricula + ', no processo de recrutamento interno para a vaga de '
+    + '<strong>' + c.unidade + '</strong>.<br><br>'
+    + 'Atesto a <strong>veracidade das informações</strong> prestadas sobre a união ('
+    + (co.tipoUniao || 'tipo não informado') + '), bem como sobre lotação e endereço.<br><br>'
+    + 'Estou ciente de que, em caso de aprovação, poderei ser lotado(a) <strong>inicialmente em '
+    + 'qualquer área no mesmo município</strong> do meu cônjuge, conforme as necessidades do serviço '
+    + 'e disponibilidade de vagas, não podendo opor-me à designação por este motivo.';
+  document.getElementById('textoDeclaracao').innerHTML = txt;
+}
+
+// ── Concordar ─────────────────────────────────────────────────────
+function acaoConcordar() {
+  var btn  = document.getElementById('btnConcordo');
+  var btn2 = document.getElementById('btnNaoConcordo');
+  btn.disabled  = true;
+  btn.textContent = '⏳ Registrando…';
+  btn2.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      document.getElementById('telaConfirmacao').style.display       = 'none';
+      document.getElementById('telaSucessoConcordou').style.display  = '';
+      if (res.pdfUrl) {
+        var div = document.getElementById('linkPdfConcordou');
+        var a   = document.getElementById('linkPdfConcordouA');
+        a.href  = res.pdfUrl;
+        div.style.display = '';
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled  = false;
+      btn.textContent = '✅ Concordo';
+      btn2.disabled = false;
+      mostrarToastErro(err.message || 'Erro ao registrar. Tente novamente.');
+    })
+    .registrarRespostaConjuge(true);
+}
+
+// ── Não Concordar ─────────────────────────────────────────────────
+function acaoNaoConcordar() {
+  // Mostra aviso por 5 s e exibe opção de prosseguir
+  var secao = document.getElementById('secaoNaoConcordo');
+  secao.style.display = '';
+
+  var toast = document.getElementById('toast');
+  toast.classList.add('visivel');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() {
+    toast.classList.remove('visivel');
+  }, 5000);
+
+  // Scroll suave até o botão de prosseguir
+  setTimeout(function() {
+    document.getElementById('btnProsseguirNormal').scrollIntoView({ behavior:'smooth', block:'center' });
+  }, 300);
+}
+
+// ── Prosseguir como candidato normal ─────────────────────────────
+function acaoProsseguirNormal() {
+  var btn  = document.getElementById('btnProsseguirNormal');
+  var btn1 = document.getElementById('btnConcordo');
+  var btn2 = document.getElementById('btnNaoConcordo');
+  btn.disabled  = true;
+  btn.textContent = '⏳ Registrando…';
+  btn1.disabled = true;
+  btn2.disabled = true;
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      document.getElementById('telaConfirmacao').style.display          = 'none';
+      document.getElementById('telaSucessoNaoConcordou').style.display  = '';
+      if (res.pdfUrl) {
+        var div = document.getElementById('linkPdfNaoConcordou');
+        var a   = document.getElementById('linkPdfNaoConcordouA');
+        a.href  = res.pdfUrl;
+        div.style.display = '';
+      }
+      // Redireciona para o formulário após 4 s
+      if (res.formUrl) {
+        setTimeout(function() {
+          window.top.location.href = res.formUrl;
+        }, 4000);
+      }
+    })
+    .withFailureHandler(function(err) {
+      btn.disabled  = false;
+      btn.textContent = '➡️ Prosseguir como candidato normal';
+      btn1.disabled = false;
+      btn2.disabled = false;
+      mostrarToastErro(err.message || 'Erro ao registrar. Tente novamente.');
+    })
+    .registrarRespostaConjuge(false);
+}
+
+// ── Toast de erro simples ─────────────────────────────────────────
+function mostrarToastErro(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = '⛔ ' + msg;
+  t.style.background = '#c62828';
+  t.classList.add('visivel');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { t.classList.remove('visivel'); }, 5000);
+}
+</script>
+</body>
+</html>
