@@ -217,6 +217,16 @@
     }
     .box-codigo-existente .field-label { margin-bottom:6px; }
     .box-codigo-existente input { margin-bottom:10px; background:#fff; }
+
+    /* ── Spinner de carregamento ── */
+    .spinner-login {
+      width:44px; height:44px; margin:0 auto 14px;
+      border:4px solid #dde3ea;
+      border-top-color:var(--azul-prf);
+      border-radius:50%;
+      animation:spinL .8s linear infinite;
+    }
+    @keyframes spinL { to { transform:rotate(360deg); } }
   </style>
 </head>
 
@@ -238,12 +248,48 @@
           <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
         </div>
         <div>
-          <h2>Acesso Seguro</h2>
-          <small>Verificação em duas etapas (2FA)</small>
+          <h2>Recrutamento Interno PRF</h2>
+          <small>Autenticação via conta institucional</small>
         </div>
       </div>
 
-      <!-- Indicadores de progresso -->
+      <!--
+      ══════════════════════════════════════════════════════════════
+      2FA DESATIVADO — autenticação migrada para Google Workspace
+      ══════════════════════════════════════════════════════════════
+      Para reativar o fluxo 2FA por e-mail:
+        1. Remova as marcações 2FA_OFF_INICIO e 2FA_OFF_FIM
+           dos blocos etapaEmail, etapaCodigo e steps-container.
+        2. No bloco script, descomente as funcoes marcadas [2FA_OFF]
+           e remova a chamada a iniciarSessao().
+        3. Em Codigo.gs.js, verifique que enviarEmail2FA() esta ativo
+           e que o DKIM do dominio prf.gov.br esta habilitado no
+           Google Workspace Admin Console:
+           Admin Console > Apps > Google Workspace > Gmail >
+           Autenticar e-mail > Iniciar autenticacao.
+      ══════════════════════════════════════════════════════════════
+      -->
+
+      <!-- ── Tela: carregando sessão ── -->
+      <div id="etapaCarregando">
+        <div style="text-align:center; padding:28px 0 20px;">
+          <div class="spinner-login"></div>
+          <p style="font-size:13px;color:#555;">Identificando sua conta…</p>
+        </div>
+      </div>
+
+      <!-- ── Tela: erro de acesso ── -->
+      <div id="etapaErro" style="display:none;">
+        <div class="info-box" style="background:#fff0f0;border-left:4px solid #c62828;color:#7f0000;margin-bottom:14px;">
+          <svg viewBox="0 0 24 24" fill="#c62828" style="flex-shrink:0;width:18px;height:18px;margin-top:1px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <span id="erroMsgLogin">Erro ao identificar sua conta.</span>
+        </div>
+        <p style="font-size:12px;color:#888;text-align:center;">
+          Entre em contato com o administrador do sistema.
+        </p>
+      </div>
+
+      <!-- 2FA_OFF_INICIO
       <div class="steps-2fa" id="steps-container">
         <div class="step-item-2fa">
           <div class="step-dot ativo" id="dot1">1</div>
@@ -260,66 +306,71 @@
           <div class="step-lbl-2fa" id="lbl3">Destino</div>
         </div>
       </div>
+      2FA_OFF_FIM -->
 
-      <!-- ── ETAPA 1: E-mail ── -->
-      <div id="etapaEmail">
-        <div class="info-box azul">
-          <svg viewBox="0 0 24 24" fill="#1a237e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-          <span>Informe seu e-mail <strong>@prf.gov.br</strong>. Se já tiver um código válido, insira-o diretamente. Caso contrário, solicite um novo.</span>
-        </div>
+      <!-- [2FA_OFF] Para reativar: remova o style="display:none" do div#secao2FA abaixo -->
+      <div id="secao2FA" style="display:none">
 
-        <label class="field-label" for="email">E-mail Institucional <span class="obrig">*</span></label>
-        <input type="email" id="email" placeholder="seu.nome@prf.gov.br"
-               oninput="validarEmail()" onkeydown="if(event.key==='Enter') enviarCodigo2FA()">
-        <div class="msg-erro" id="erroEmail">Use o e-mail institucional @prf.gov.br</div>
-
-        <!-- Seção código existente — aparece quando e-mail é válido -->
-        <div id="secaoCodigoExistente" style="display:none;">
-          <div class="box-codigo-existente">
-            <label class="field-label" for="codigoExistente">Já tenho um código <span class="obrig">*</span></label>
-            <input type="text" id="codigoExistente" placeholder="000000" maxlength="6"
-                   inputmode="numeric" class="code-input"
-                   oninput="this.value=this.value.replace(/\D/,'')"
-                   onkeydown="if(event.key==='Enter') tentarCodigoExistente()">
-            <div class="msg-erro" id="erroCodigoExistente"></div>
-            <button class="btn btn-primary" id="btnUsarCodigo" onclick="tentarCodigoExistente()">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-              Prosseguir
-            </button>
+        <!-- ── ETAPA 1: E-mail ── -->
+        <div id="etapaEmail">
+          <div class="info-box azul">
+            <svg viewBox="0 0 24 24" fill="#1a237e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span>Informe seu e-mail <strong>@prf.gov.br</strong>. Se já tiver um código válido, insira-o diretamente. Caso contrário, solicite um novo.</span>
           </div>
-          <div class="divider-ou"><span>ou</span></div>
+
+          <label class="field-label" for="email">E-mail Institucional <span class="obrig">*</span></label>
+          <input type="email" id="email" placeholder="seu.nome@prf.gov.br"
+                 oninput="validarEmail()" onkeydown="if(event.key==='Enter') enviarCodigo2FA()">
+          <div class="msg-erro" id="erroEmail">Use o e-mail institucional @prf.gov.br</div>
+
+          <div id="secaoCodigoExistente" style="display:none;">
+            <div class="box-codigo-existente">
+              <label class="field-label" for="codigoExistente">Já tenho um código <span class="obrig">*</span></label>
+              <input type="text" id="codigoExistente" placeholder="000000" maxlength="6"
+                     inputmode="numeric" class="code-input"
+                     oninput="this.value=this.value.replace(/\D/,'')"
+                     onkeydown="if(event.key==='Enter') tentarCodigoExistente()">
+              <div class="msg-erro" id="erroCodigoExistente"></div>
+              <button class="btn btn-primary" id="btnUsarCodigo" onclick="tentarCodigoExistente()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                Prosseguir
+              </button>
+            </div>
+            <div class="divider-ou"><span>ou</span></div>
+          </div>
+
+          <button class="btn btn-primary" id="btnEnviar" onclick="enviarCodigo2FA()" disabled>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            Solicitar novo código 2FA
+          </button>
         </div>
 
-        <button class="btn btn-primary" id="btnEnviar" onclick="enviarCodigo2FA()" disabled>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          Solicitar novo código 2FA
-        </button>
-      </div>
+        <!-- ── ETAPA 2: Código ── -->
+        <div id="etapaCodigo">
+          <div class="info-box verde">
+            <svg viewBox="0 0 24 24" fill="#2e7d32"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            <span>Código enviado para <strong id="emailExibido"></strong>.<br>Verifique sua caixa de entrada e insira o código abaixo. <strong>Válido por 24 horas.</strong></span>
+          </div>
 
-      <!-- ── ETAPA 2: Código ── -->
-      <div id="etapaCodigo" style="display:none;">
-        <div class="info-box verde">
-          <svg viewBox="0 0 24 24" fill="#2e7d32"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-          <span>Código enviado para <strong id="emailExibido"></strong>.<br>Verifique sua caixa de entrada e insira o código abaixo. <strong>Válido por 24 horas.</strong></span>
+          <label class="field-label" for="codigoInput">Código de Verificação <span class="obrig">*</span></label>
+          <input type="text" id="codigoInput" placeholder="000000" maxlength="6"
+                 inputmode="numeric" class="code-input"
+                 oninput="this.value=this.value.replace(/\D/,'')"
+                 onkeydown="if(event.key==='Enter') verificarCodigo()">
+          <div class="msg-erro" id="erroCodigo">Código incorreto. Verifique e tente novamente.</div>
+
+          <button class="btn btn-primary" id="btnProsseguir" onclick="verificarCodigo()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            Prosseguir
+          </button>
+          <button class="btn btn-ghost" onclick="voltarEmail()">
+            ← Usar outro e-mail
+          </button>
         </div>
 
-        <label class="field-label" for="codigoInput">Código de Verificação <span class="obrig">*</span></label>
-        <input type="text" id="codigoInput" placeholder="000000" maxlength="6"
-               inputmode="numeric" class="code-input"
-               oninput="this.value=this.value.replace(/\D/,'')"
-               onkeydown="if(event.key==='Enter') verificarCodigo()">
-        <div class="msg-erro" id="erroCodigo">Código incorreto. Verifique e tente novamente.</div>
+      </div><!-- /secao2FA -->
 
-        <button class="btn btn-primary" id="btnProsseguir" onclick="verificarCodigo()">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-          Prosseguir
-        </button>
-        <button class="btn btn-ghost" onclick="voltarEmail()">
-          ← Usar outro e-mail
-        </button>
-      </div>
-
-      <!-- ── ETAPA 3: Destino (usuários com acesso ao Painel e/ou Votação) ── -->
+      <!-- ── ETAPA 3: Destino ── -->
       <div id="etapaDestino" style="display:none;">
         <div class="destino-boas-vindas">
           <div class="bv-nome" id="destinoNome">Bem-vindo!</div>
@@ -407,12 +458,68 @@
     var dt = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('versao').innerText = 'Versão: ' + dt;
 
-    // ── Estado 2FA ──
-    var _emailConfirm      = null;
+    // ── URLs de destino ──
     var _urlForm           = null;
     var _urlPainel         = null;
     var _urlVotacao        = null;
     var _urlAcompanhamento = null;
+
+    // ── Auto-login via sessão Google Workspace ──
+    document.addEventListener('DOMContentLoaded', function() {
+      google.script.run
+        .withSuccessHandler(_processarSessao)
+        .withFailureHandler(function(err) {
+          document.getElementById('etapaCarregando').style.display = 'none';
+          document.getElementById('etapaErro').style.display       = 'block';
+          document.getElementById('erroMsgLogin').textContent      = err.message || 'Erro ao identificar sua conta.';
+        })
+        .iniciarSessao();
+    });
+
+    function _processarSessao(res) {
+      _urlForm           = res.formUrl           || null;
+      _urlPainel         = res.painelUrl         || null;
+      _urlVotacao        = res.votacaoUrl        || null;
+      _urlAcompanhamento = res.acompanhamentoUrl || null;
+
+      var temDestino = res.painelUrl || res.votacaoUrl || res.acompanhamentoUrl;
+      document.getElementById('etapaCarregando').style.display = 'none';
+
+      if (temDestino) {
+        var nome = res.nome || res.email || '';
+        document.getElementById('destinoNome').textContent = 'Olá, ' + nome.split(' ')[0] + '!';
+        if (res.painelUrl) {
+          var badgeEl = document.getElementById('badgePerfil');
+          var isAdmin = res.perfil === 'ADMINISTRADOR';
+          badgeEl.textContent = res.perfil || '';
+          badgeEl.className   = 'badge-perfil ' + (isAdmin ? 'admin' : 'avaliador');
+          document.getElementById('btnAcessarPainel').style.display = '';
+        }
+        if (res.votacaoUrl) {
+          document.getElementById('btnAcessarVotacao').style.display = '';
+        }
+        if (res.acompanhamentoUrl) {
+          document.getElementById('btnAcessarAcompanhamento').style.display = '';
+        }
+        document.getElementById('etapaDestino').style.display = 'block';
+      } else if (res.formUrl) {
+        window.top.location.href = res.formUrl;
+      } else {
+        document.getElementById('etapaErro').style.display  = 'block';
+        document.getElementById('erroMsgLogin').textContent = 'Não foi possível determinar seu destino. Contate o administrador.';
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       [2FA_OFF] Funções do fluxo 2FA — desativadas.
+       Para reativar: remova os delimitadores de comentário
+       de bloco (barra-asterisco) abaixo e acima de [2FA_OFF_FIM],
+       e remova a chamada a iniciarSessao() acima.
+       ══════════════════════════════════════════════════════════════ */
+    /*
+
+    // ── Estado 2FA ──
+    var _emailConfirm = null;
 
     // ── Validação do campo e-mail ──
     function validarEmail() {
@@ -630,15 +737,6 @@
         .verificarCodigo2FA(_emailConfirm, codigo);
     }
 
-    // ── Navegar para destino escolhido ──
-    function irPara(destino) {
-      var url = destino === 'painel'          ? _urlPainel
-              : destino === 'votacao'         ? _urlVotacao
-              : destino === 'acompanhamento'  ? _urlAcompanhamento
-              : _urlForm;
-      if (url) window.top.location.href = url;
-    }
-
     // ── Voltar para etapa do e-mail ──
     function voltarEmail() {
       document.getElementById('etapaCodigo').style.display  = 'none';
@@ -650,31 +748,36 @@
       document.getElementById('codigoExistente').value = '';
       document.getElementById('codigoExistente').classList.remove('invalid');
       document.getElementById('erroCodigoExistente').classList.remove('visivel');
-      // Mostra seção de código existente se e-mail ainda está preenchido
       var email = document.getElementById('email').value.trim();
       document.getElementById('secaoCodigoExistente').style.display = email.toLowerCase().endsWith('@prf.gov.br') ? '' : 'none';
-      _urlForm           = null;
-      _urlPainel         = null;
-      _urlVotacao        = null;
-      _urlAcompanhamento = null;
-      document.getElementById('btnAcessarPainel').style.display          = 'none';
-      document.getElementById('btnAcessarVotacao').style.display         = 'none';
-      document.getElementById('btnAcessarAcompanhamento').style.display  = 'none';
-      // Reset passo 1
+      _urlForm = null; _urlPainel = null; _urlVotacao = null; _urlAcompanhamento = null;
+      document.getElementById('btnAcessarPainel').style.display         = 'none';
+      document.getElementById('btnAcessarVotacao').style.display        = 'none';
+      document.getElementById('btnAcessarAcompanhamento').style.display = 'none';
       document.getElementById('dot1').className   = 'step-dot ativo';
       document.getElementById('dot1').textContent = '1';
       document.getElementById('lbl1').className   = 'step-lbl-2fa ativo';
       document.getElementById('line1').className  = 'step-line-2fa';
-      // Reset passo 2
       document.getElementById('dot2').className   = 'step-dot';
       document.getElementById('dot2').textContent = '2';
       document.getElementById('lbl2').className   = 'step-lbl-2fa';
-      // Esconde passo 3
       document.getElementById('line2').style.display     = 'none';
       document.getElementById('step3item').style.display = 'none';
       document.getElementById('dot3').className  = 'step-dot';
       document.getElementById('lbl3').className  = 'step-lbl-2fa';
     }
+
+    */ // [2FA_OFF_FIM]
+
+    // ── Navegar para destino escolhido ──
+    function irPara(destino) {
+      var url = destino === 'painel'          ? _urlPainel
+              : destino === 'votacao'         ? _urlVotacao
+              : destino === 'acompanhamento'  ? _urlAcompanhamento
+              : _urlForm;
+      if (url) window.top.location.href = url;
+    }
+
   </script>
 
 </body>

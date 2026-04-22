@@ -154,6 +154,109 @@ function enviarEmail2FA(email) {
   MailApp.sendEmail({ to: email, subject: '[PRF Recrutamento] Seu código: ' + codigo, htmlBody: corpo, name: 'Recrutamento PRF' });
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  LOGIN VIA GOOGLE WORKSPACE (substitui fluxo 2FA)
+// ═══════════════════════════════════════════════════════════════════
+//
+//  Para reativar o 2FA por e-mail:
+//   1. Substitua a chamada a iniciarSessao() no Login.html pela
+//      chamada a enviarEmail2FA() (descomente o bloco [2FA_OFF]).
+//   2. Certifique-se de que o DKIM do domínio prf.gov.br está ativo:
+//      Admin Console → Apps → Google Workspace → Gmail →
+//      Autenticar e-mail → Iniciar autenticação.
+//
+// ─── Detecta e-mails de área/setor (ex: sgp.go@prf.gov.br) ───────
+function _isEmailDeArea(email) {
+  const local  = String(email || '').toLowerCase().split('@')[0];
+  const partes = local.split('.');
+
+  // Siglas de unidades organizacionais conhecidas da PRF
+  const UORGS = new Set([
+    'dgp','diprom','dicop','dicat','drgp','dare','dasp',
+    'cgp','cgcsp','cgti','cgrh','cglog','cgfin','cgad',
+    'direx','dint','dor','dop','daf','dpp','dprf',
+    'gate','niop','niac','nucrim','nefaz','nesp','nug','nud','nup',
+    'sgp','srf','srp','sop','seop','set','stt','sri','sti',
+    'naf','cci','gab','sec','adm','fin','log','saf','sas','sal','sap'
+  ]);
+
+  // Códigos de UF brasileiras
+  const UFS = new Set([
+    'ac','al','am','ap','ba','ce','df','es','go',
+    'ma','mg','ms','mt','pa','pb','pe','pi','pr',
+    'rj','rn','ro','rr','rs','sc','se','sp','to'
+  ]);
+
+  // Bloqueia se qualquer segmento é uma sigla de uorg conhecida
+  for (const p of partes) {
+    if (UORGS.has(p)) return true;
+  }
+
+  // Bloqueia padrão sigla_curta.uf — ex: sgp.go, naf.sp
+  if (partes.length === 2 && partes[0].length <= 5 && UFS.has(partes[1])) return true;
+
+  return false;
+}
+
+// ─── Inicia sessão usando a conta Google Workspace logada ──────────
+function iniciarSessao() {
+  const email = Session.getActiveUser().getEmail();
+  if (!email) {
+    throw new Error('Não foi possível identificar o usuário. Acesse pelo link institucional com sua conta @prf.gov.br.');
+  }
+  if (!email.toLowerCase().endsWith('@prf.gov.br')) {
+    throw new Error('Acesso restrito a servidores com e-mail @prf.gov.br.');
+  }
+  if (_isEmailDeArea(email)) {
+    throw new Error(
+      'O e-mail "' + email + '" parece ser de uma área ou setor (ex: sgp.go@prf.gov.br). ' +
+      'Acesse com seu e-mail pessoal institucional.'
+    );
+  }
+
+  const baseUrl    = ScriptApp.getService().getUrl();
+  const painelInfo = _checarPerfilPainel(email);
+
+  let votacaoUrl = null;
+  try {
+    const cRows = _getCredenciaisSheet().getDataRange().getValues();
+    for (let j = cRows.length - 1; j >= 1; j--) {
+      const ce = String(cRows[j][0] || '').toLowerCase();
+      const cp = String(cRows[j][2] || '').toUpperCase();
+      const cs = String(cRows[j][5] || '').toLowerCase();
+      if (ce === email.toLowerCase() && cs === 'ativo'
+          && (cp === 'VOTADOR' || cp === 'ADMINISTRADOR')) {
+        votacaoUrl = baseUrl + '?pagina=votacao';
+        break;
+      }
+    }
+  } catch(e) {}
+
+  let acompanhamentoUrl = null;
+  try {
+    const shResp = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('respostas');
+    if (shResp && shResp.getLastRow() > 1) {
+      const rows = shResp.getRange(1, 1, shResp.getLastRow(), 2).getValues().slice(1);
+      for (let k = rows.length - 1; k >= 0; k--) {
+        if (String(rows[k][1] || '').toLowerCase() === email.toLowerCase()) {
+          acompanhamentoUrl = baseUrl + '?pagina=acompanhamento';
+          break;
+        }
+      }
+    }
+  } catch(e) {}
+
+  return {
+    email:             email,
+    formUrl:           baseUrl + '?pagina=formulario',
+    painelUrl:         painelInfo ? (baseUrl + '?pagina=painel') : null,
+    votacaoUrl:        votacaoUrl,
+    acompanhamentoUrl: acompanhamentoUrl,
+    perfil:            painelInfo ? painelInfo.perfil : null,
+    nome:              painelInfo ? painelInfo.nome   : email.split('@')[0]
+  };
+}
+
 // ─── Checa se o e-mail tem perfil no painel (sem lançar erro) ─────
 function _checarPerfilPainel(email) {
   try {
