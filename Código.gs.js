@@ -56,6 +56,14 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
+  if (params.pagina === 'acompanhamento') {
+    return HtmlService.createTemplateFromFile('Acompanhamento')
+      .evaluate()
+      .setTitle('Acompanhamento — PRF')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   var arquivo = params.pagina === 'formulario' ? 'Index' : 'Login';
   return HtmlService.createTemplateFromFile(arquivo)
     .evaluate()
@@ -220,12 +228,28 @@ function verificarCodigo2FA(email, codigoDigitado) {
       }
     } catch(e) { /* aba pode não existir ainda */ }
 
+    // Verifica se o candidato tem inscrição para exibir link de acompanhamento
+    let acompanhamentoUrl = null;
+    try {
+      const shResp = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('respostas');
+      if (shResp && shResp.getLastRow() > 1) {
+        const respRows = shResp.getRange(1, 1, shResp.getLastRow(), 2).getValues().slice(1);
+        for (let k = respRows.length - 1; k >= 0; k--) {
+          if (String(respRows[k][1] || '').toLowerCase() === email.toLowerCase()) {
+            acompanhamentoUrl = baseUrl + '?pagina=acompanhamento';
+            break;
+          }
+        }
+      }
+    } catch(e) { /* aba pode não existir ainda */ }
+
     return {
-      formUrl:    formUrl,
-      painelUrl:  painelInfo  ? (baseUrl + '?pagina=painel') : null,
-      votacaoUrl: votacaoUrl,
-      perfil:     painelInfo  ? painelInfo.perfil : null,
-      nome:       painelInfo  ? painelInfo.nome   : (votacaoUrl ? email.split('@')[0] : null)
+      formUrl:           formUrl,
+      painelUrl:         painelInfo  ? (baseUrl + '?pagina=painel') : null,
+      votacaoUrl:        votacaoUrl,
+      acompanhamentoUrl: acompanhamentoUrl,
+      perfil:            painelInfo  ? painelInfo.perfil : null,
+      nome:              painelInfo  ? painelInfo.nome   : (votacaoUrl ? email.split('@')[0] : null)
     };
   }
 
@@ -2563,4 +2587,155 @@ function salvarVoto(emailCandidato, notas, comentario) {
   ]);
 
   return { media };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ACOMPANHAMENTO DO CANDIDATO
+// ════════════════════════════════════════════════════════════════
+
+// ─── Constantes da aba de entrevistas ────────────────────────────
+const SHEET_ENTREVISTAS  = 'entrevistas';
+const HEADERS_ENTREVISTAS = [
+  'Email Candidato','Nome Candidato','Matrícula',
+  'Email Entrevistador 1','Nome Entrevistador 1',
+  'Email Entrevistador 2','Nome Entrevistador 2',
+  'Email Entrevistador 3','Nome Entrevistador 3',
+  'Data Entrevista','Hora Início','Duração (min)','Link Meet',
+  'Status'
+];
+
+const SHEET_SOLICITACOES  = 'solicitacoes_alteracao';
+const HEADERS_SOLICITACOES = [
+  'Data/Hora','Email Candidato','Nome Candidato',
+  'Email Entrevistador','Nome Entrevistador',
+  'Justificativa','Status'
+];
+
+// ─── Inicializa página de acompanhamento ─────────────────────────
+function inicializarAcompanhamento() {
+  const email = Session.getActiveUser().getEmail();
+  if (!email) throw new Error('Não foi possível identificar o usuário.');
+
+  const ss        = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheetResp = ss.getSheetByName('respostas');
+  if (!sheetResp || sheetResp.getLastRow() < 2) {
+    throw new Error('Nenhuma inscrição encontrada para este e-mail.');
+  }
+
+  // Busca inscrição do candidato (colunas 0-32 para ter Status)
+  const lastRow = sheetResp.getLastRow();
+  const data    = sheetResp.getRange(1, 1, lastRow, 33).getValues();
+  let rowCandidato = null;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][1] || '').toLowerCase() === email.toLowerCase()) {
+      rowCandidato = data[i];
+      break;
+    }
+  }
+  if (!rowCandidato) throw new Error('Nenhuma inscrição encontrada para este e-mail.');
+
+  const status = String(rowCandidato[32] || '');
+
+  // Busca dados da entrevista do candidato
+  let entrevista = null;
+  const sheetEnt = ss.getSheetByName(SHEET_ENTREVISTAS);
+  if (sheetEnt && sheetEnt.getLastRow() > 1) {
+    const entRows = sheetEnt.getDataRange().getValues().slice(1);
+    for (const r of entRows) {
+      if (String(r[0] || '').toLowerCase() === email.toLowerCase()) {
+        entrevista = {
+          data:           String(r[9]  || ''),
+          hora:           String(r[10] || ''),
+          duracao:        String(r[11] || ''),
+          linkMeet:       String(r[12] || ''),
+          statusEnt:      String(r[13] || ''),
+          entrevistadores: [
+            r[3] ? { email: String(r[3]), nome: String(r[4] || '') } : null,
+            r[5] ? { email: String(r[5]), nome: String(r[6] || '') } : null,
+            r[7] ? { email: String(r[7]), nome: String(r[8] || '') } : null
+          ].filter(Boolean)
+        };
+        break;
+      }
+    }
+  }
+
+  // Busca solicitações anteriores deste candidato
+  let solicitacoes = [];
+  const sheetSol = ss.getSheetByName(SHEET_SOLICITACOES);
+  if (sheetSol && sheetSol.getLastRow() > 1) {
+    sheetSol.getDataRange().getValues().slice(1).forEach(function(r) {
+      if (String(r[1] || '').toLowerCase() === email.toLowerCase()) {
+        solicitacoes.push({
+          data:              String(r[0] || ''),
+          emailEntrevistador: String(r[3] || ''),
+          nomeEntrevistador:  String(r[4] || ''),
+          justificativa:      String(r[5] || ''),
+          statusSol:          String(r[6] || '')
+        });
+      }
+    });
+  }
+
+  return {
+    nome:        String(rowCandidato[2]  || ''),
+    matricula:   String(rowCandidato[3]  || ''),
+    unidade:     String(rowCandidato[5]  || ''),
+    status:      status,
+    entrevista:  entrevista,
+    solicitacoes: solicitacoes
+  };
+}
+
+// ─── Solicita alteração de entrevistador ─────────────────────────
+function solicitarAlteracaoEntrevistador(emailEntrevistador, nomeEntrevistador, justificativa) {
+  const email = Session.getActiveUser().getEmail();
+  if (!email) throw new Error('Não foi possível identificar o usuário.');
+  if (!emailEntrevistador || !justificativa || justificativa.trim().length < 20) {
+    throw new Error('Preencha o entrevistador e a justificativa (mínimo 20 caracteres).');
+  }
+
+  const ss        = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheetResp = ss.getSheetByName('respostas');
+  let nomeCandidato = '';
+  if (sheetResp && sheetResp.getLastRow() > 1) {
+    const rows = sheetResp.getRange(1, 1, sheetResp.getLastRow(), 3).getValues().slice(1);
+    for (const r of rows) {
+      if (String(r[1] || '').toLowerCase() === email.toLowerCase()) {
+        nomeCandidato = String(r[2] || '');
+        break;
+      }
+    }
+  }
+
+  // Verifica se já existe solicitação pendente para o mesmo entrevistador
+  let sheetSol = ss.getSheetByName(SHEET_SOLICITACOES);
+  if (!sheetSol) {
+    sheetSol = ss.insertSheet(SHEET_SOLICITACOES);
+    sheetSol.appendRow(HEADERS_SOLICITACOES);
+    sheetSol.setFrozenRows(1);
+    sheetSol.getRange(1, 1, 1, HEADERS_SOLICITACOES.length)
+      .setFontWeight('bold').setBackground('#1d1a5b').setFontColor('#ffffff');
+  } else if (sheetSol.getLastRow() > 1) {
+    const rows = sheetSol.getDataRange().getValues().slice(1);
+    for (const r of rows) {
+      if (String(r[1] || '').toLowerCase() === email.toLowerCase() &&
+          String(r[3] || '').toLowerCase() === emailEntrevistador.toLowerCase() &&
+          String(r[6] || '').toLowerCase() === 'pendente') {
+        throw new Error('Você já possui uma solicitação pendente para este entrevistador.');
+      }
+    }
+  }
+
+  sheetSol.appendRow([
+    new Date(),
+    email,
+    nomeCandidato,
+    emailEntrevistador,
+    nomeEntrevistador || emailEntrevistador,
+    justificativa.trim(),
+    'Pendente'
+  ]);
+
+  return { ok: true };
 }

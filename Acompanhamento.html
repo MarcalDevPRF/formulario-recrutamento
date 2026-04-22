@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACOMPANHAMENTO — PRF</title>
+  <style>
+    :root {
+      --azul-prf:    #1d1a5b;
+      --amarelo-prf: #f2c200;
+      --azul-btn:    #2a5db0;
+      --cinza-fundo: #f5f6f7;
+      --verde:       #2e7d32;
+      --laranja:     #e65100;
+      --erro:        #c62828;
+      --shadow:      0 2px 12px rgba(0,0,0,.10);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Arial,sans-serif; }
+    body { background:var(--cinza-fundo); }
+
+    /* ── Topbar ── */
+    .topbar {
+      width:100%; background:var(--azul-prf); color:#fff;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 20px; flex-wrap:wrap; gap:8px;
+    }
+    .topbar-left  { display:flex; align-items:center; gap:14px; }
+    .logo         { font-weight:bold; font-size:22px; color:var(--amarelo-prf); }
+    .title        { font-size:17px; }
+    .topbar-right { font-size:12px; opacity:.75; }
+
+    /* ── Container ── */
+    .container {
+      max-width:640px; margin:0 auto;
+      padding:24px 16px 80px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background:#fff; border-radius:12px;
+      box-shadow:var(--shadow); overflow:hidden;
+      margin-bottom:16px;
+    }
+    .card-header {
+      background:var(--azul-prf); color:#fff;
+      padding:12px 18px; font-weight:bold; font-size:14px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .card-body { padding:18px; }
+
+    /* ── Loading ── */
+    #telaLoading {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; min-height:60vh; gap:16px;
+    }
+    .spinner {
+      width:46px; height:46px;
+      border:4px solid #dde3ea;
+      border-top-color:var(--azul-prf);
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Status badge ── */
+    .badge {
+      display:inline-block; padding:4px 12px;
+      border-radius:20px; font-size:12px; font-weight:bold;
+    }
+    .badge-inscrito    { background:#e8f5e9; color:#2e7d32; }
+    .badge-rascunho    { background:#fff3e0; color:#e65100; }
+    .badge-pendente    { background:#fff9c4; color:#795548; }
+    .badge-aprovado    { background:#e8f5e9; color:#1b5e20; }
+    .badge-reprovado   { background:#ffebee; color:#c62828; }
+
+    /* ── Dados do candidato ── */
+    .info-grid {
+      display:grid; grid-template-columns:1fr 1fr;
+      gap:10px 20px;
+    }
+    @media(max-width:420px) { .info-grid { grid-template-columns:1fr; } }
+    .info-item label {
+      display:block; font-size:11px; color:#888; text-transform:uppercase;
+      letter-spacing:.5px; margin-bottom:2px;
+    }
+    .info-item span { font-size:14px; color:#1a2332; font-weight:bold; }
+
+    /* ── Seção entrevista ── */
+    .entrevista-vazia {
+      text-align:center; padding:28px 16px;
+      color:#888; font-size:14px;
+    }
+    .entrevista-vazia .icon { font-size:36px; margin-bottom:8px; }
+
+    .entrevista-data {
+      display:flex; align-items:center; gap:14px;
+      background:#f0f4ff; border-radius:8px;
+      padding:14px; margin-bottom:14px;
+    }
+    .entrevista-data .icon-cal {
+      font-size:32px; flex-shrink:0;
+    }
+    .entrevista-data .det { flex:1; }
+    .entrevista-data .det strong { display:block; font-size:15px; color:#1a2332; }
+    .entrevista-data .det small  { font-size:12px; color:#666; }
+
+    .btn-meet {
+      display:flex; align-items:center; justify-content:center; gap:10px;
+      background:#1a73e8; color:#fff;
+      border:none; border-radius:8px;
+      padding:12px 20px; font-size:14px; font-weight:bold;
+      cursor:pointer; width:100%; text-decoration:none;
+      transition:background .2s;
+    }
+    .btn-meet:hover { background:#1557b0; }
+    .btn-meet-icone { font-size:20px; }
+
+    .entrevistadores-list { list-style:none; margin-top:12px; }
+    .entrevistadores-list li {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 0; border-bottom:1px solid #f0f0f0;
+    }
+    .entrevistadores-list li:last-child { border-bottom:none; }
+    .ent-avatar {
+      width:36px; height:36px; border-radius:50%;
+      background:var(--azul-prf); color:#fff;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:bold; font-size:14px; flex-shrink:0;
+    }
+    .ent-info strong { display:block; font-size:13px; color:#1a2332; }
+    .ent-info small  { font-size:11px; color:#888; }
+
+    .btn-solicitar-link {
+      background:none; border:none; color:var(--azul-btn);
+      font-size:11px; cursor:pointer; text-decoration:underline;
+      padding:0; margin-left:auto; flex-shrink:0;
+    }
+    .btn-solicitar-link:hover { color:var(--azul-prf); }
+
+    /* ── Formulário de solicitação ── */
+    .form-solicitacao { display:none; }
+    .form-solicitacao.visivel { display:block; }
+
+    .select-ent {
+      width:100%; padding:10px 12px;
+      border:1.5px solid #dde3ea; border-radius:8px;
+      font-size:14px; color:#1a2332;
+      background:#fff; margin-bottom:10px;
+    }
+    .select-ent:focus { outline:none; border-color:var(--azul-btn); }
+
+    textarea.justificativa {
+      width:100%; min-height:90px; resize:vertical;
+      padding:10px 12px; border:1.5px solid #dde3ea; border-radius:8px;
+      font-size:14px; color:#1a2332; font-family:inherit;
+    }
+    textarea.justificativa:focus { outline:none; border-color:var(--azul-btn); }
+
+    .char-count { font-size:11px; color:#888; text-align:right; margin-top:3px; }
+    .char-count.ok { color:var(--verde); }
+
+    .btn-enviar {
+      background:var(--azul-btn); color:#fff;
+      border:none; border-radius:8px;
+      padding:10px 24px; font-size:14px; font-weight:bold;
+      cursor:pointer; margin-top:10px; width:100%;
+      transition:background .2s;
+    }
+    .btn-enviar:disabled { background:#b0bec5; cursor:not-allowed; }
+    .btn-enviar:not(:disabled):hover { background:var(--azul-prf); }
+
+    .msg-erro { color:var(--erro); font-size:12px; margin-top:6px; }
+    .msg-ok   { color:var(--verde); font-size:12px; margin-top:6px; }
+
+    /* ── Histórico de solicitações ── */
+    .sol-item {
+      border:1px solid #e8eaf0; border-radius:8px;
+      padding:12px 14px; margin-bottom:10px; font-size:13px;
+    }
+    .sol-item:last-child { margin-bottom:0; }
+    .sol-top {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:6px;
+    }
+    .sol-ent { font-weight:bold; color:#1a2332; }
+    .sol-data { font-size:11px; color:#aaa; }
+    .sol-just { color:#555; font-style:italic; font-size:12px; margin-bottom:6px; }
+    .badge-sol-pendente  { background:#fff9c4; color:#795548; }
+    .badge-sol-aprovado  { background:#e8f5e9; color:#2e7d32; }
+    .badge-sol-reprovado { background:#ffebee; color:#c62828; }
+
+    /* ── Toast ── */
+    #toast {
+      position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(40px);
+      background:#323232; color:#fff; padding:12px 22px; border-radius:8px;
+      font-size:13px; opacity:0; transition:all .35s; z-index:9999;
+      pointer-events:none; white-space:nowrap;
+    }
+    #toast.visivel { opacity:1; transform:translateX(-50%) translateY(0); }
+    #toast.toast-ok   { background:#2e7d32; }
+    #toast.toast-erro { background:#c62828; }
+
+    /* ── Sem entrevista agendada ── */
+    .aviso-box {
+      background:#fff8e1; border:1px solid #ffe082; border-radius:8px;
+      padding:14px 16px; font-size:13px; color:#5d4037;
+      display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;
+    }
+    .aviso-box .aviso-icone { font-size:18px; flex-shrink:0; margin-top:1px; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">PRF</span>
+    <span class="title">Acompanhamento da Inscrição</span>
+  </div>
+  <div class="topbar-right" id="infoUsuario"></div>
+</div>
+
+<!-- Loading -->
+<div id="telaLoading">
+  <div class="spinner"></div>
+  <p style="color:#555;font-size:14px;">Carregando seus dados…</p>
+</div>
+
+<!-- Conteúdo principal (oculto até carregar) -->
+<div class="container" id="conteudo" style="display:none;">
+
+  <!-- Card: Dados do candidato -->
+  <div class="card">
+    <div class="card-header">👤 Seus Dados</div>
+    <div class="card-body">
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Nome</label>
+          <span id="cadNome">—</span>
+        </div>
+        <div class="info-item">
+          <label>Matrícula</label>
+          <span id="cadMatricula">—</span>
+        </div>
+        <div class="info-item">
+          <label>Unidade Pleiteada</label>
+          <span id="cadUnidade">—</span>
+        </div>
+        <div class="info-item">
+          <label>Status da Inscrição</label>
+          <span id="cadStatus">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card: Entrevista -->
+  <div class="card">
+    <div class="card-header">📅 Entrevista Online</div>
+    <div class="card-body" id="secaoEntrevista">
+      <!-- preenchido via JS -->
+    </div>
+  </div>
+
+  <!-- Card: Solicitar Alteração de Entrevistador -->
+  <div class="card" id="cardSolicitacao" style="display:none;">
+    <div class="card-header">🔄 Solicitar Alteração de Entrevistador</div>
+    <div class="card-body">
+      <div class="aviso-box">
+        <span class="aviso-icone">⚠️</span>
+        <span>Use apenas em casos justificados (impedimento legal, conflito de interesse). Sua solicitação será analisada pela administração.</span>
+      </div>
+
+      <div id="formSolicitacao" class="form-solicitacao">
+        <label style="font-size:13px;font-weight:bold;display:block;margin-bottom:6px;">
+          Entrevistador a solicitar alteração <span style="color:var(--erro)">*</span>
+        </label>
+        <select id="selectEntrevistador" class="select-ent">
+          <option value="">— Selecione —</option>
+        </select>
+
+        <label style="font-size:13px;font-weight:bold;display:block;margin:10px 0 6px;">
+          Justificativa <span style="color:var(--erro)">*</span>
+        </label>
+        <textarea id="justificativa" class="justificativa"
+          placeholder="Descreva o motivo da solicitação (mínimo 20 caracteres)…"
+          maxlength="600"
+          oninput="atualizarContador()"></textarea>
+        <div class="char-count" id="charCount">0 / 600</div>
+
+        <div class="msg-erro" id="erroForm"></div>
+        <button class="btn-enviar" id="btnEnviarSol" onclick="enviarSolicitacao()">
+          Enviar Solicitação
+        </button>
+      </div>
+
+      <div id="btnAbrirForm" style="text-align:center; padding-top:4px;">
+        <button onclick="abrirFormulario()"
+          style="background:none;border:1.5px solid var(--azul-btn);color:var(--azul-btn);
+                 border-radius:8px;padding:9px 20px;font-size:13px;cursor:pointer;font-weight:bold;">
+          + Nova Solicitação
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card: Histórico de Solicitações -->
+  <div class="card" id="cardHistorico" style="display:none;">
+    <div class="card-header">📋 Histórico de Solicitações</div>
+    <div class="card-body" id="listaHistorico">
+      <!-- preenchido via JS -->
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── Estado ────────────────────────────────────────────────────────
+var _dados      = null;
+var _formAberto = false;
+
+// ── Inicialização ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  google.script.run
+    .withSuccessHandler(renderizarPagina)
+    .withFailureHandler(function(err) {
+      document.getElementById('telaLoading').innerHTML =
+        '<div style="text-align:center;padding:40px 16px;">'
+        + '<div style="font-size:48px;margin-bottom:12px;">⛔</div>'
+        + '<p style="color:#c62828;font-size:15px;font-weight:bold;">'
+        + (err.message || 'Erro ao carregar dados.')
+        + '</p></div>';
+    })
+    .inicializarAcompanhamento();
+});
+
+// ── Renderização principal ────────────────────────────────────────
+function renderizarPagina(dados) {
+  _dados = dados;
+
+  // Info do usuário na topbar
+  document.getElementById('infoUsuario').textContent = dados.nome || '';
+
+  // Dados básicos
+  document.getElementById('cadNome').textContent      = dados.nome      || '—';
+  document.getElementById('cadMatricula').textContent = dados.matricula || '—';
+  document.getElementById('cadUnidade').textContent   = dados.unidade   || '—';
+
+  // Badge de status
+  var statusEl  = document.getElementById('cadStatus');
+  var statusMap = {
+    'Inscrito':        ['badge-inscrito',  'Inscrito'],
+    'Em preenchimento':['badge-rascunho',  'Em preenchimento'],
+    'Aprovado':        ['badge-aprovado',  'Aprovado'],
+    'Reprovado':       ['badge-reprovado', 'Reprovado'],
+    'Pendente':        ['badge-pendente',  'Pendente']
+  };
+  var sm = statusMap[dados.status] || ['badge-rascunho', dados.status || '—'];
+  statusEl.innerHTML = '<span class="badge ' + sm[0] + '">' + sm[1] + '</span>';
+
+  // Seção entrevista
+  renderEntrevista(dados.entrevista);
+
+  // Histórico de solicitações
+  if (dados.solicitacoes && dados.solicitacoes.length > 0) {
+    renderHistorico(dados.solicitacoes);
+    document.getElementById('cardHistorico').style.display = '';
+  }
+
+  // Mostra conteúdo
+  document.getElementById('telaLoading').style.display  = 'none';
+  document.getElementById('conteudo').style.display     = '';
+}
+
+// ── Entrevista ────────────────────────────────────────────────────
+function renderEntrevista(ent) {
+  var secao = document.getElementById('secaoEntrevista');
+
+  if (!ent || !ent.data) {
+    secao.innerHTML =
+      '<div class="entrevista-vazia">'
+      + '<div class="icon">🗓️</div>'
+      + '<p>Sua entrevista ainda não foi agendada.<br>'
+      + '<small style="color:#aaa">Você será notificado quando a data for definida.</small></p>'
+      + '</div>';
+    return;
+  }
+
+  var html = '';
+
+  // Data e hora
+  html += '<div class="entrevista-data">'
+        + '<div class="icon-cal">📅</div>'
+        + '<div class="det">'
+        + '<strong>' + ent.data + (ent.hora ? ' às ' + ent.hora : '') + '</strong>'
+        + '<small>Duração prevista: ' + (ent.duracao ? ent.duracao + ' minutos' : 'a definir') + '</small>'
+        + '</div></div>';
+
+  // Link Google Meet
+  if (ent.linkMeet) {
+    html += '<a class="btn-meet" href="' + ent.linkMeet + '" target="_blank" '
+          + 'onclick="return abrirMeet(\'' + ent.linkMeet + '\')">'
+          + '<span class="btn-meet-icone">📹</span> Entrar na Entrevista (Google Meet)</a>';
+    html += '<p style="font-size:11px;color:#888;text-align:center;margin-top:6px;">'
+          + 'Uma janela popup será aberta. Se bloqueada, clique novamente.</p>';
+  } else {
+    html += '<div class="aviso-box" style="margin-top:10px;">'
+          + '<span class="aviso-icone">🔗</span>'
+          + '<span>O link da reunião será disponibilizado em breve.</span></div>';
+  }
+
+  // Entrevistadores
+  if (ent.entrevistadores && ent.entrevistadores.length > 0) {
+    html += '<p style="font-size:12px;font-weight:bold;color:#555;margin-top:16px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Entrevistadores</p>';
+    html += '<ul class="entrevistadores-list">';
+    ent.entrevistadores.forEach(function(e) {
+      var inicial = (e.nome || e.email || '?')[0].toUpperCase();
+      html += '<li>'
+            + '<div class="ent-avatar">' + inicial + '</div>'
+            + '<div class="ent-info">'
+            + '<strong>' + (e.nome || e.email) + '</strong>'
+            + '<small>' + e.email + '</small>'
+            + '</div>'
+            + '</li>';
+    });
+    html += '</ul>';
+
+    // Mostra o card de solicitação
+    preencherSelectEntrevistadores(ent.entrevistadores);
+    document.getElementById('cardSolicitacao').style.display = '';
+  }
+
+  secao.innerHTML = html;
+}
+
+// ── Google Meet popup ─────────────────────────────────────────────
+function abrirMeet(url) {
+  var popup = window.open(url, 'meet_prf',
+    'width=900,height=700,resizable=yes,scrollbars=yes,status=yes');
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    // Popup bloqueado — deixa o link normal abrir
+    return true;
+  }
+  popup.focus();
+  return false;
+}
+
+// ── Formulário de solicitação ─────────────────────────────────────
+function preencherSelectEntrevistadores(lista) {
+  var sel = document.getElementById('selectEntrevistador');
+  lista.forEach(function(e) {
+    var opt = document.createElement('option');
+    opt.value       = e.email;
+    opt.textContent = e.nome || e.email;
+    sel.appendChild(opt);
+  });
+}
+
+function abrirFormulario() {
+  document.getElementById('formSolicitacao').classList.add('visivel');
+  document.getElementById('btnAbrirForm').style.display = 'none';
+  _formAberto = true;
+}
+
+function atualizarContador() {
+  var txt   = document.getElementById('justificativa').value;
+  var el    = document.getElementById('charCount');
+  el.textContent = txt.length + ' / 600';
+  el.className   = 'char-count' + (txt.length >= 20 ? ' ok' : '');
+}
+
+function enviarSolicitacao() {
+  var emailEnt  = document.getElementById('selectEntrevistador').value;
+  var nomeEnt   = document.querySelector('#selectEntrevistador option:checked')
+                    ? document.querySelector('#selectEntrevistador option:checked').textContent
+                    : '';
+  var justif    = document.getElementById('justificativa').value.trim();
+  var erroEl    = document.getElementById('erroForm');
+  var btnEnviar = document.getElementById('btnEnviarSol');
+
+  erroEl.textContent = '';
+
+  if (!emailEnt) {
+    erroEl.textContent = 'Selecione um entrevistador.';
+    return;
+  }
+  if (justif.length < 20) {
+    erroEl.textContent = 'A justificativa deve ter pelo menos 20 caracteres.';
+    return;
+  }
+
+  btnEnviar.disabled    = true;
+  btnEnviar.textContent = 'Enviando…';
+
+  google.script.run
+    .withSuccessHandler(function() {
+      mostrarToast('Solicitação enviada com sucesso.', 'ok');
+      btnEnviar.textContent = 'Enviar Solicitação';
+      btnEnviar.disabled    = false;
+      // Limpa formulário
+      document.getElementById('selectEntrevistador').value = '';
+      document.getElementById('justificativa').value       = '';
+      atualizarContador();
+      document.getElementById('formSolicitacao').classList.remove('visivel');
+      document.getElementById('btnAbrirForm').style.display = '';
+      _formAberto = false;
+      // Recarrega para atualizar histórico
+      setTimeout(function() { location.reload(); }, 1200);
+    })
+    .withFailureHandler(function(err) {
+      erroEl.textContent    = err.message || 'Erro ao enviar. Tente novamente.';
+      btnEnviar.textContent = 'Enviar Solicitação';
+      btnEnviar.disabled    = false;
+    })
+    .solicitarAlteracaoEntrevistador(emailEnt, nomeEnt, justif);
+}
+
+// ── Histórico ─────────────────────────────────────────────────────
+function renderHistorico(lista) {
+  var el  = document.getElementById('listaHistorico');
+  var tz  = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  var fmt = new Intl.DateTimeFormat('pt-BR', {
+    day:'2-digit', month:'2-digit', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  });
+
+  var html = '';
+  lista.forEach(function(sol) {
+    var badgeCls = {
+      'Pendente':  'badge-sol-pendente',
+      'Aprovado':  'badge-sol-aprovado',
+      'Reprovado': 'badge-sol-reprovado'
+    }[sol.statusSol] || 'badge-rascunho';
+
+    html += '<div class="sol-item">'
+          + '<div class="sol-top">'
+          + '<span class="sol-ent">' + (sol.nomeEntrevistador || sol.emailEntrevistador) + '</span>'
+          + '<span class="sol-data">' + (sol.data || '') + '</span>'
+          + '</div>'
+          + '<div class="sol-just">"' + (sol.justificativa || '') + '"</div>'
+          + '<span class="badge ' + badgeCls + '">' + (sol.statusSol || '—') + '</span>'
+          + '</div>';
+  });
+  el.innerHTML = html;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function mostrarToast(msg, tipo) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'visivel toast-' + (tipo || 'ok');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function() { t.className = ''; }, 3500);
+}
+</script>
+</body>
+</html>

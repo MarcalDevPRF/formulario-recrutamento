@@ -355,6 +355,15 @@
             </div>
             <span class="badge-perfil avaliador" id="badgeVotador" style="background:#fce4ec;color:#c62828;">VOTADOR</span>
           </button>
+          <button class="btn-destino" id="btnAcessarAcompanhamento" onclick="irPara('acompanhamento')" style="display:none;">
+            <div class="dest-icon" style="background:#e8f5e9;">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="#2e7d32"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <div class="dest-info">
+              <span class="dest-titulo">Acompanhamento</span>
+              <span class="dest-sub">Acompanhe sua inscrição e entrevista</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -399,10 +408,11 @@
     document.getElementById('versao').innerText = 'Versão: ' + dt;
 
     // ── Estado 2FA ──
-    var _emailConfirm = null;
-    var _urlForm      = null;
-    var _urlPainel    = null;
-    var _urlVotacao   = null;
+    var _emailConfirm      = null;
+    var _urlForm           = null;
+    var _urlPainel         = null;
+    var _urlVotacao        = null;
+    var _urlAcompanhamento = null;
 
     // ── Validação do campo e-mail ──
     function validarEmail() {
@@ -452,15 +462,16 @@
       if (typeof res === 'string') { window.top.location.href = res; return; }
       if (!res || typeof res !== 'object') { onErro('Código incorreto. Verifique e tente novamente.'); return; }
 
-      _urlForm    = res.formUrl    || null;
-      _urlPainel  = res.painelUrl  || null;
-      _urlVotacao = res.votacaoUrl || null;
+      _urlForm           = res.formUrl           || null;
+      _urlPainel         = res.painelUrl         || null;
+      _urlVotacao        = res.votacaoUrl        || null;
+      _urlAcompanhamento = res.acompanhamentoUrl || null;
 
       document.getElementById('dot2').className   = 'step-dot feito';
       document.getElementById('dot2').textContent = '✓';
       document.getElementById('lbl2').className   = 'step-lbl-2fa feito';
 
-      var temDestino = res.painelUrl || res.votacaoUrl;
+      var temDestino = res.painelUrl || res.votacaoUrl || res.acompanhamentoUrl;
       if (temDestino) {
         document.getElementById('line2').style.display     = '';
         document.getElementById('step3item').style.display = '';
@@ -477,6 +488,9 @@
         }
         if (res.votacaoUrl) {
           document.getElementById('btnAcessarVotacao').style.display = '';
+        }
+        if (res.acompanhamentoUrl) {
+          document.getElementById('btnAcessarAcompanhamento').style.display = '';
         }
         document.getElementById('etapaCodigo').style.display  = 'none';
         document.getElementById('etapaDestino').style.display = 'block';
@@ -618,8 +632,9 @@
 
     // ── Navegar para destino escolhido ──
     function irPara(destino) {
-      var url = destino === 'painel'   ? _urlPainel
-              : destino === 'votacao'  ? _urlVotacao
+      var url = destino === 'painel'          ? _urlPainel
+              : destino === 'votacao'         ? _urlVotacao
+              : destino === 'acompanhamento'  ? _urlAcompanhamento
               : _urlForm;
       if (url) window.top.location.href = url;
     }
@@ -638,11 +653,13 @@
       // Mostra seção de código existente se e-mail ainda está preenchido
       var email = document.getElementById('email').value.trim();
       document.getElementById('secaoCodigoExistente').style.display = email.toLowerCase().endsWith('@prf.gov.br') ? '' : 'none';
-      _urlForm    = null;
-      _urlPainel  = null;
-      _urlVotacao = null;
-      document.getElementById('btnAcessarPainel').style.display  = 'none';
-      document.getElementById('btnAcessarVotacao').style.display = 'none';
+      _urlForm           = null;
+      _urlPainel         = null;
+      _urlVotacao        = null;
+      _urlAcompanhamento = null;
+      document.getElementById('btnAcessarPainel').style.display          = 'none';
+      document.getElementById('btnAcessarVotacao').style.display         = 'none';
+      document.getElementById('btnAcessarAcompanhamento').style.display  = 'none';
       // Reset passo 1
       document.getElementById('dot1').className   = 'step-dot ativo';
       document.getElementById('dot1').textContent = '1';
